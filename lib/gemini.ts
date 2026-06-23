@@ -1,4 +1,4 @@
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenAI, ThinkingLevel } from '@google/genai';
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
@@ -41,9 +41,9 @@ export async function generateReply(faqCsv: string, userMessage: string): Promis
       config: {
         maxOutputTokens: 1024,
         thinkingConfig: {
-          thinkingLevel: 'low' as 'low',
+          thinkingLevel: ThinkingLevel.LOW,
         },
-      } as Record<string, unknown>,
+      },
     });
 
     const timeoutPromise = new Promise<never>((_, reject) =>
