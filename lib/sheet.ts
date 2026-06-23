@@ -24,14 +24,16 @@ export async function getFaqCsv(): Promise<string> {
     if (!res.ok) throw new Error(`Sheet fetch failed: ${res.status}`);
 
     const raw = await res.text();
-    const lines = raw.split('\n');
+    const lines = raw.split('\n').filter((l) => l.trim() !== '');
     const header = lines[0];
+    const dataLines = lines.slice(1);
 
-    // filter active=TRUE — active is the last column, ends with ,TRUE
-    const activeLines = lines.slice(1).filter((line) => {
-      const trimmed = line.trim().toUpperCase();
-      return trimmed.endsWith(',TRUE');
-    });
+    // ถ้ามีคอลัมน์ active (4 คอลัมน์+) → filter เฉพาะ TRUE
+    // ถ้าไม่มี → ส่งทุกแถว
+    const hasActiveCol = header.split(',').length >= 4;
+    const activeLines = hasActiveCol
+      ? dataLines.filter((line) => line.trim().toUpperCase().endsWith(',TRUE'))
+      : dataLines;
 
     const filtered = [header, ...activeLines].join('\n');
     cache = { data: filtered, timestamp: now };
