@@ -41,9 +41,9 @@ export async function generateReply(faqCsv: string, userMessage: string): Promis
       config: {
         maxOutputTokens: 1024,
         thinkingConfig: {
-          thinkingLevel: 'low',
+          thinkingLevel: 'low' as 'low',
         },
-      },
+      } as Record<string, unknown>,
     });
 
     const timeoutPromise = new Promise<never>((_, reject) =>
@@ -54,7 +54,8 @@ export async function generateReply(faqCsv: string, userMessage: string): Promis
 
     const candidate = response.candidates?.[0];
     const finishReason = candidate?.finishReason;
-    const usage = response.usageMetadata;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const usage = response.usageMetadata as any;
 
     console.log('[Gemini]', {
       finishReason,
@@ -69,7 +70,7 @@ export async function generateReply(faqCsv: string, userMessage: string): Promis
     }
 
     const text = response.text;
-    return text?.trim() || DEFAULT_REPLY;
+    return (typeof text === 'string' ? text : '').trim() || DEFAULT_REPLY;
   } catch (err) {
     console.error('[Gemini] Error:', err);
     return DEFAULT_REPLY;
