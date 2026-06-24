@@ -4,6 +4,7 @@ import { fetchFAQRows, matchFAQ } from '@/lib/sheet';
 import { generateReply, DEFAULT_REPLY } from '@/lib/gemini';
 import { replyText } from '@/lib/line';
 import { shouldHandoff, notifyAdmin } from '@/lib/handoff';
+import { isPaused, pauseUser } from '@/lib/pause';
 import { log } from '@/lib/log';
 
 export const maxDuration = 10;
@@ -47,8 +48,12 @@ export async function POST(req: NextRequest) {
       }
 
       try {
-        // 1. Smart Handoff — ตรวจก่อน Gemini เพื่อลด latency
+        // 1. ถ้าแอดมินกำลังคุยอยู่ → บอทหยุดตอบ 2 ชั่วโมง
+        if (isPaused(userId)) return;
+
+        // 2. Smart Handoff — pause user แล้วแจ้ง admin
         if (shouldHandoff(userMessage)) {
+          pauseUser(userId);
           await Promise.all([
             replyText(replyToken, 'ขอแอดมินติดต่อกลับนะคะ 🙏'),
             notifyAdmin(userId, userMessage),
