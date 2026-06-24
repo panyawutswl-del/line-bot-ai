@@ -28,12 +28,16 @@ export async function getFaqCsv(): Promise<string> {
     const header = lines[0];
     const dataLines = lines.slice(1);
 
-    // ถ้ามีคอลัมน์ active (4 คอลัมน์+) → filter เฉพาะ TRUE
-    // ถ้าไม่มี → ส่งทุกแถว
-    const hasActiveCol = header.split(',').length >= 4;
-    const activeLines = hasActiveCol
-      ? dataLines.filter((line) => line.trim().toUpperCase().endsWith(',TRUE'))
-      : dataLines;
+    // ตรวจหาคอลัมน์ active จากชื่อ header จริงๆ ไม่ใช่จำนวนคอลัมน์
+    const headerCols = header.split(',').map((h) => h.trim().toLowerCase());
+    const activeIdx = headerCols.indexOf('active');
+    const activeLines =
+      activeIdx !== -1
+        ? dataLines.filter((line) => {
+            const cols = line.split(',');
+            return cols[activeIdx]?.trim().toUpperCase() === 'TRUE';
+          })
+        : dataLines;
 
     const filtered = [header, ...activeLines].join('\n');
     cache = { data: filtered, timestamp: now };
