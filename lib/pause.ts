@@ -1,4 +1,4 @@
-const PAUSE_TTL_MS = 2 * 60 * 60 * 1000; // 2 ชั่วโมง
+const PAUSE_TTL_MS = 1 * 60 * 60 * 1000; // 1 ชั่วโมง
 
 const paused = new Map<string, number>(); // userId → expiresAt
 
