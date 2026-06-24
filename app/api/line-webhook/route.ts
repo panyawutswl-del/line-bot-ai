@@ -36,8 +36,15 @@ export async function POST(req: NextRequest) {
       const source = event.source as Record<string, unknown>;
       const userId = (source?.userId as string) ?? 'unknown';
       const sourceGroupId = source?.groupId as string | undefined;
-      if (sourceGroupId) log.info('webhook.source_group_id', { groupId: sourceGroupId });
       const start = Date.now();
+
+      // Setup helper: ถ้าบอทอยู่ใน group และยังไม่ตั้ง ADMIN_GROUP_ID → reply บอก ID
+      if (sourceGroupId) {
+        if (!process.env.ADMIN_GROUP_ID) {
+          await replyText(replyToken, `ID ของ group นี้คือ:\n\n${sourceGroupId}\n\nนำไปใส่ใน Vercel\nSettings → Environment Variables\nชื่อ: ADMIN_GROUP_ID`);
+        }
+        return; // ไม่ตอบ message ในกลุ่ม (กลุ่มไว้รับแจ้งเตือนเท่านั้น)
+      }
 
       try {
         // 1. Smart Handoff — ตรวจก่อน Gemini เพื่อลด latency
