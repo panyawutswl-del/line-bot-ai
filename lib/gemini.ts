@@ -1,4 +1,4 @@
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenAI, type GenerateContentResponse } from '@google/genai';
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
@@ -32,48 +32,81 @@ ${userMessage}
 </question>`;
 }
 
+function is503(err: unknown): boolean {
+  if (typeof err !== 'object' || err === null) return false;
+  const e = err as Record<string, unknown>;
+  return (
+    e['status'] === 503 ||
+    String(e['message'] ?? '').includes('503') ||
+    String(e['message'] ?? '').includes('UNAVAILABLE')
+  );
+}
+
+async function callModel(
+  model: string,
+  prompt: string,
+  withThinking: boolean,
+  timeoutMs: number,
+): Promise<GenerateContentResponse> {
+  const call = ai.models.generateContent({
+    model,
+    contents: prompt,
+    config: {
+      maxOutputTokens: 1024,
+      ...(withThinking ? { thinkingConfig: { thinkingBudget: 2048 } } : {}),
+    },
+  });
+
+  const timeout = new Promise<never>((_, reject) =>
+    setTimeout(() => reject(new Error(`Gemini timeout after ${timeoutMs}ms`)), timeoutMs),
+  );
+
+  return Promise.race([call, timeout]);
+}
+
+function parseResponse(response: GenerateContentResponse, model: string): string | null {
+  const finishReason = response.candidates?.[0]?.finishReason;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const usage = response.usageMetadata as any;
+  console.log('[Gemini]', {
+    model,
+    finishReason,
+    thoughtsTokenCount: usage?.thoughtsTokenCount,
+    candidatesTokenCount: usage?.candidatesTokenCount,
+    totalTokenCount: usage?.totalTokenCount,
+  });
+
+  if (finishReason === 'MAX_TOKENS') {
+    console.warn('[Gemini] MAX_TOKENS — returning default reply');
+    return null;
+  }
+
+  const text = response.text;
+  return (typeof text === 'string' ? text : '').trim() || null;
+}
+
 export async function generateReply(faqCsv: string, userMessage: string): Promise<string> {
   const prompt = buildPrompt(faqCsv, userMessage);
 
+  // Primary: gemini-2.5-flash with thinking (5s budget — leaves time for fallback)
   try {
-    const geminiCall = ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: prompt,
-      config: {
-        maxOutputTokens: 1024,
-        thinkingConfig: {
-          thinkingBudget: 2048,
-        },
-      },
-    });
-
-    const timeoutPromise = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error('Gemini timeout after 7s')), 7_000),
-    );
-
-    const response = await Promise.race([geminiCall, timeoutPromise]);
-
-    const candidate = response.candidates?.[0];
-    const finishReason = candidate?.finishReason;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const usage = response.usageMetadata as any;
-
-    console.log('[Gemini]', {
-      finishReason,
-      thoughtsTokenCount: usage?.thoughtsTokenCount,
-      candidatesTokenCount: usage?.candidatesTokenCount,
-      totalTokenCount: usage?.totalTokenCount,
-    });
-
-    if (finishReason === 'MAX_TOKENS') {
-      console.warn('[Gemini] MAX_TOKENS — returning default reply');
+    const response = await callModel('gemini-2.5-flash', prompt, true, 5_000);
+    return parseResponse(response, 'gemini-2.5-flash') ?? DEFAULT_REPLY;
+  } catch (err) {
+    if (is503(err)) {
+      console.warn('[Gemini] 503 on gemini-2.5-flash — falling back to gemini-1.5-flash');
+    } else {
+      console.error('[Gemini] Primary error:', err);
       return DEFAULT_REPLY;
     }
+  }
 
-    const text = response.text;
-    return (typeof text === 'string' ? text : '').trim() || DEFAULT_REPLY;
+  // Fallback: gemini-1.5-flash (stable, no thinking needed)
+  try {
+    const response = await callModel('gemini-1.5-flash', prompt, false, 4_000);
+    return parseResponse(response, 'gemini-1.5-flash') ?? DEFAULT_REPLY;
   } catch (err) {
-    console.error('[Gemini] Error:', err);
+    console.error('[Gemini] Fallback error:', err);
     return DEFAULT_REPLY;
   }
 }
