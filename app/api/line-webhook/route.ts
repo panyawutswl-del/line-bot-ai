@@ -33,8 +33,10 @@ export async function POST(req: NextRequest) {
 
       const userMessage = (message.text as string) ?? '';
       const replyToken = event.replyToken as string;
-      const userId =
-        ((event.source as Record<string, unknown>)?.userId as string) ?? 'unknown';
+      const source = event.source as Record<string, unknown>;
+      const userId = (source?.userId as string) ?? 'unknown';
+      const sourceGroupId = source?.groupId as string | undefined;
+      if (sourceGroupId) log.info('webhook.source_group_id', { groupId: sourceGroupId });
       const start = Date.now();
 
       try {
