@@ -1,4 +1,12 @@
+export interface FAQRow {
+  category: string;
+  question: string;
+  answer: string;
+  keywords: string[]; // parsed from Keyword column (comma-separated)
+}
+
 interface Cache {
+  rows: FAQRow[];
   text: string;
   expiresAt: number;
 }
@@ -7,8 +15,16 @@ const CACHE_TTL_MS = 60_000;
 let cache: Cache | null = null;
 
 export async function fetchFAQ(): Promise<string> {
+  return (await getCache()).text;
+}
+
+export async function fetchFAQRows(): Promise<FAQRow[]> {
+  return (await getCache()).rows;
+}
+
+async function getCache(): Promise<Cache> {
   const now = Date.now();
-  if (cache && cache.expiresAt > now) return cache.text;
+  if (cache && cache.expiresAt > now) return cache;
 
   const url = process.env.SHEET_CSV_URL;
   if (!url) throw new Error('SHEET_CSV_URL not set');
@@ -21,31 +37,56 @@ export async function fetchFAQ(): Promise<string> {
     if (!res.ok) throw new Error(`sheet fetch ${res.status}`);
 
     const csv = await res.text();
-    const text = csvToFaqText(csv);
+    const rows = csvToFaqRows(csv);
+    const text = rowsToText(rows);
 
-    cache = { text, expiresAt: now + CACHE_TTL_MS };
-    return text;
+    cache = { rows, text, expiresAt: now + CACHE_TTL_MS };
+    return cache;
   } catch (err) {
     if (cache) {
       console.warn('[sheet] fetch failed, serving stale cache:', err);
-      return cache.text;
+      return cache;
     }
     throw err;
   }
 }
 
-function csvToFaqText(csv: string): string {
+// ตรงไปตรงมา: ตรวจ keyword ก่อน แล้วค่อยตรวจ question text
+export function matchFAQ(userMessage: string, rows: FAQRow[]): string | null {
+  const msg = normalize(userMessage);
+  for (const row of rows) {
+    if (!row.answer) continue;
+    if (row.keywords.some((kw) => kw && msg.includes(normalize(kw)))) {
+      return row.answer;
+    }
+    if (row.question && msg.includes(normalize(row.question))) {
+      return row.answer;
+    }
+  }
+  return null;
+}
+
+function normalize(text: string): string {
+  return text.toLowerCase().replace(/\s+/g, '').trim();
+}
+
+function rowsToText(rows: FAQRow[]): string {
+  return rows
+    .filter((r) => r.answer)
+    .map((r) => `[${r.category}] ${r.question}\n→ ${r.answer}`)
+    .join('\n\n');
+}
+
+function csvToFaqRows(csv: string): FAQRow[] {
   const rows = parseCSV(csv);
-  if (rows.length < 2) return '';
+  if (rows.length < 2) return [];
 
   const header = rows[0].map((h) => h.toLowerCase().trim());
   const activeIdx = header.indexOf('active');
-
-  // Sheet columns: No. | หมวดหมู่ | คำถาม | คำตอบ | Keyword
-  // ตรวจหา index จาก header จริง (รองรับทั้งภาษาไทยและอังกฤษ)
   const catIdx = header.findIndex((h) => h.includes('category') || h.includes('หมวด'));
   const qIdx = header.findIndex((h) => h.includes('question') || h.includes('คำถาม'));
   const aIdx = header.findIndex((h) => h.includes('answer') || h.includes('คำตอบ'));
+  const kIdx = header.findIndex((h) => h.includes('keyword'));
 
   const ci = catIdx >= 0 ? catIdx : 1;
   const qi = qIdx >= 0 ? qIdx : 2;
@@ -59,14 +100,18 @@ function csvToFaqText(csv: string): string {
       return true;
     })
     .map((row) => {
-      const cat = row[ci]?.trim() ?? '';
-      const q = row[qi]?.trim() ?? '';
-      const a = row[ai]?.trim() ?? '';
-      if (!a) return null;
-      return `[${cat}] ${q}\n→ ${a}`;
+      const rawKeywords = kIdx >= 0 ? (row[kIdx] ?? '') : '';
+      return {
+        category: row[ci]?.trim() ?? '',
+        question: row[qi]?.trim() ?? '',
+        answer: row[ai]?.trim() ?? '',
+        keywords: rawKeywords
+          .split(',')
+          .map((k) => k.trim())
+          .filter(Boolean),
+      };
     })
-    .filter((x): x is string => x !== null)
-    .join('\n\n');
+    .filter((r) => r.answer);
 }
 
 // Full CSV parser — รองรับ quoted fields ที่มี comma และ newline ข้างใน

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { validateSignature } from '@line/bot-sdk';
-import { fetchFAQ } from '@/lib/sheet';
+import { fetchFAQRows, matchFAQ } from '@/lib/sheet';
 import { generateReply, DEFAULT_REPLY } from '@/lib/gemini';
 import { replyText } from '@/lib/line';
 import { shouldHandoff, notifyAdmin } from '@/lib/handoff';
@@ -48,15 +48,27 @@ export async function POST(req: NextRequest) {
           return;
         }
 
-        // 2. ดึง FAQ (cached 60s)
-        let faqText = '';
+        // 2. ดึง FAQ rows (cached 60s)
+        let faqRows: Awaited<ReturnType<typeof fetchFAQRows>> = [];
         try {
-          faqText = await fetchFAQ();
+          faqRows = await fetchFAQRows();
         } catch (err) {
           log.warn('webhook.sheet_unavailable', { err: String(err) });
         }
 
-        // 3. เรียก Gemini
+        // 3. Direct keyword match — ตอบเลยโดยไม่เรียก Gemini
+        const directAnswer = matchFAQ(userMessage, faqRows);
+        if (directAnswer) {
+          await replyText(replyToken, directAnswer);
+          log.info('webhook.direct_match', { userId, latencyMs: Date.now() - start });
+          return;
+        }
+
+        // 4. Fallback → Gemini (สำหรับคำถามที่ไม่ match keyword)
+        const faqText = faqRows
+          .filter((r) => r.answer)
+          .map((r) => `[${r.category}] ${r.question}\n→ ${r.answer}`)
+          .join('\n\n');
         const reply = await generateReply(userId, userMessage, faqText);
 
         // 4. Reply กลับ LINE
