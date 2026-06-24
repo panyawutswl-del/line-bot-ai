@@ -88,22 +88,22 @@ function parseResponse(response: GenerateContentResponse, model: string): string
 export async function generateReply(faqCsv: string, userMessage: string): Promise<string> {
   const prompt = buildPrompt(faqCsv, userMessage);
 
-  // Primary: gemini-2.5-flash with thinking (5s budget — leaves time for fallback)
+  // Primary: gemini-2.0-flash — GA stable, ไม่มี 503 preview capacity issue
   try {
-    const response = await callModel('gemini-2.5-flash', prompt, true, 5_000);
-    return parseResponse(response, 'gemini-2.5-flash') ?? DEFAULT_REPLY;
+    const response = await callModel('gemini-2.0-flash', prompt, false, 6_000);
+    return parseResponse(response, 'gemini-2.0-flash') ?? DEFAULT_REPLY;
   } catch (err) {
     if (is503(err)) {
-      console.warn('[Gemini] 503 on gemini-2.5-flash — falling back to gemini-1.5-flash');
+      console.warn('[Gemini] 503 on gemini-2.0-flash — falling back to gemini-1.5-flash');
     } else {
       console.error('[Gemini] Primary error:', err);
       return DEFAULT_REPLY;
     }
   }
 
-  // Fallback: gemini-1.5-flash (stable, no thinking needed)
+  // Fallback: gemini-1.5-flash (ultra stable)
   try {
-    const response = await callModel('gemini-1.5-flash', prompt, false, 4_000);
+    const response = await callModel('gemini-1.5-flash', prompt, false, 3_000);
     return parseResponse(response, 'gemini-1.5-flash') ?? DEFAULT_REPLY;
   } catch (err) {
     console.error('[Gemini] Fallback error:', err);
