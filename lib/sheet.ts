@@ -1,3 +1,5 @@
+import { fuzzyContains } from '@/lib/fuzzy';
+
 export interface FAQRow {
   category: string;
   question: string;
@@ -51,23 +53,18 @@ async function getCache(): Promise<Cache> {
   }
 }
 
-// ตรงไปตรงมา: ตรวจ keyword ก่อน แล้วค่อยตรวจ question text
+// ตรวจ keyword ก่อน แล้วค่อยตรวจ question text — รองรับการสะกดผิดด้วย fuzzy
 export function matchFAQ(userMessage: string, rows: FAQRow[]): string | null {
-  const msg = normalize(userMessage);
   for (const row of rows) {
     if (!row.answer) continue;
-    if (row.keywords.some((kw) => kw && msg.includes(normalize(kw)))) {
+    if (row.keywords.some((kw) => kw && fuzzyContains(userMessage, kw))) {
       return row.answer;
     }
-    if (row.question && msg.includes(normalize(row.question))) {
+    if (row.question && fuzzyContains(userMessage, row.question)) {
       return row.answer;
     }
   }
   return null;
-}
-
-function normalize(text: string): string {
-  return text.toLowerCase().replace(/\s+/g, '').trim();
 }
 
 function rowsToText(rows: FAQRow[]): string {

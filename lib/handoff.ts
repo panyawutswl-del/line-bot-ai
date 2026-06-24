@@ -1,4 +1,5 @@
 import { messagingApi } from '@line/bot-sdk';
+import { fuzzyContains } from '@/lib/fuzzy';
 
 const client = new messagingApi.MessagingApiClient({
   channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN!,
@@ -6,6 +7,7 @@ const client = new messagingApi.MessagingApiClient({
 
 const HANDOFF_TRIGGERS = [
   'คุยกับคน',
+  'คุยกับแอดมิน',
   'ขอแอดมิน',
   'ขอเจ้าของ',
   'ขอผู้จัดการ',
@@ -21,8 +23,7 @@ const HANDOFF_TRIGGERS = [
 ];
 
 export function shouldHandoff(message: string): boolean {
-  const lower = message.toLowerCase();
-  return HANDOFF_TRIGGERS.some((t) => lower.includes(t));
+  return HANDOFF_TRIGGERS.some((t) => fuzzyContains(message, t));
 }
 
 export async function notifyAdmin(userId: string, userMessage: string): Promise<void> {
