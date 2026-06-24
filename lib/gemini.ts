@@ -1,5 +1,6 @@
 import { GoogleGenAI } from '@google/genai';
 import { log } from '@/lib/log';
+import { getHistory, addTurn } from '@/lib/history';
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
@@ -63,8 +64,19 @@ function isRetryable(err: unknown): boolean {
   return msg.includes('503') || msg.includes('UNAVAILABLE');
 }
 
-export async function generateReply(userMessage: string, faqText: string): Promise<string> {
+export async function generateReply(
+  userId: string,
+  userMessage: string,
+  faqText: string,
+): Promise<string> {
   const start = Date.now();
+
+  // Build multi-turn contents from history + current message
+  const history = getHistory(userId);
+  const contents = [
+    ...history.map((t) => ({ role: t.role, parts: [{ text: t.text }] })),
+    { role: 'user' as const, parts: [{ text: userMessage }] },
+  ];
 
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
@@ -72,7 +84,7 @@ export async function generateReply(userMessage: string, faqText: string): Promi
 
       const call = ai.models.generateContent({
         model: MODEL,
-        contents: userMessage,
+        contents,
         config: {
           systemInstruction: buildSystemPrompt(faqText),
           maxOutputTokens: 1024,

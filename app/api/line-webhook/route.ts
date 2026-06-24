@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
         }
 
         // 3. เรียก Gemini
-        const reply = await generateReply(userMessage, faqText);
+        const reply = await generateReply(userId, userMessage, faqText);
 
         // 4. Reply กลับ LINE
         await replyText(replyToken, reply);
