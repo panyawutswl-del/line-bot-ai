@@ -33,42 +33,57 @@ ${userMessage}
 </question>`;
 }
 
+function isRetryable(err: unknown): boolean {
+  const msg = String((err as Record<string, unknown>)?.message ?? '');
+  return msg.includes('503') || msg.includes('UNAVAILABLE');
+}
+
 export async function generateReply(faqCsv: string, userMessage: string): Promise<string> {
   const prompt = buildPrompt(faqCsv, userMessage);
 
-  try {
-    const call = ai.models.generateContent({
-      model: 'gemini-1.5-flash',
-      contents: prompt,
-      config: { maxOutputTokens: 1024 },
-    });
+  // retry สูงสุด 2 ครั้ง เมื่อเจอ 503 (503 มักหาย < 1s, budget รวม ~7s)
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const timeoutMs = attempt === 1 ? 5_000 : 3_500;
+      const call = ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+        config: { maxOutputTokens: 1024 },
+      });
 
-    const timeout = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error('Gemini timeout after 7s')), 7_000),
-    );
+      const timeout = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error(`timeout attempt ${attempt}`)), timeoutMs),
+      );
 
-    const response = await Promise.race([call, timeout]);
+      const response = await Promise.race([call, timeout]);
+      const finishReason = response.candidates?.[0]?.finishReason;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const usage = response.usageMetadata as any;
+      console.log('[Gemini]', {
+        attempt,
+        finishReason,
+        thoughtsTokenCount: usage?.thoughtsTokenCount,
+        candidatesTokenCount: usage?.candidatesTokenCount,
+        totalTokenCount: usage?.totalTokenCount,
+      });
 
-    const finishReason = response.candidates?.[0]?.finishReason;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const usage = response.usageMetadata as any;
-    console.log('[Gemini]', {
-      model: 'gemini-1.5-flash',
-      finishReason,
-      thoughtsTokenCount: usage?.thoughtsTokenCount,
-      candidatesTokenCount: usage?.candidatesTokenCount,
-      totalTokenCount: usage?.totalTokenCount,
-    });
+      if (finishReason === 'MAX_TOKENS') {
+        console.warn('[Gemini] MAX_TOKENS — returning default reply');
+        return DEFAULT_REPLY;
+      }
 
-    if (finishReason === 'MAX_TOKENS') {
-      console.warn('[Gemini] MAX_TOKENS — returning default reply');
+      const text = response.text;
+      return (typeof text === 'string' ? text : '').trim() || DEFAULT_REPLY;
+    } catch (err) {
+      if (isRetryable(err) && attempt < 3) {
+        console.warn(`[Gemini] 503 attempt ${attempt} — retrying in 800ms`);
+        await new Promise((r) => setTimeout(r, 800));
+        continue;
+      }
+      console.error(`[Gemini] Error (attempt ${attempt}):`, err);
       return DEFAULT_REPLY;
     }
-
-    const text = response.text;
-    return (typeof text === 'string' ? text : '').trim() || DEFAULT_REPLY;
-  } catch (err) {
-    console.error('[Gemini] Error:', err);
-    return DEFAULT_REPLY;
   }
+
+  return DEFAULT_REPLY;
 }
