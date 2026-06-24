@@ -42,7 +42,7 @@ export async function generateReply(faqCsv: string, userMessage: string): Promis
       config: {
         maxOutputTokens: 1024,
         thinkingConfig: {
-          thinkingBudget: 512,
+          thinkingBudget: 2048,
         },
       },
     });
