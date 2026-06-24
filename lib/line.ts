@@ -1,17 +1,30 @@
 import { messagingApi } from '@line/bot-sdk';
+import { log } from '@/lib/log';
 
 const client = new messagingApi.MessagingApiClient({
   channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN!,
 });
 
 export async function replyText(replyToken: string, text: string): Promise<void> {
-  try {
-    await client.replyMessage({
-      replyToken,
-      messages: [{ type: 'text', text }],
-    });
-  } catch (err) {
-    // Expired replyToken is expected — log but don't throw (prevents LINE retry loop)
-    console.error('[LINE] replyMessage error:', err);
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      await client.replyMessage({
+        replyToken,
+        messages: [{ type: 'text', text }],
+      });
+      return;
+    } catch (err) {
+      const msg = String((err as Error)?.message ?? err);
+      // replyToken คือ one-time token — ถ้าหมดอายุแล้ว retry ไม่ช่วย
+      if (msg.includes('Invalid reply token') || msg.includes('400')) {
+        log.warn('line.reply_token_expired', { attempt });
+        return;
+      }
+      if (attempt < 2) {
+        await new Promise((r) => setTimeout(r, 500 * attempt));
+        continue;
+      }
+      log.error('line.reply_failed', { err: msg });
+    }
   }
 }
