@@ -66,7 +66,7 @@ export async function generateReply(
         contents,
         config: {
           systemInstruction: buildSystemPrompt(faqText),
-          maxOutputTokens: 512,
+          maxOutputTokens: 1024,
           thinkingConfig: { thinkingBudget: 0 },
         },
       });
@@ -92,7 +92,10 @@ export async function generateReply(
       });
 
       if (finishReason === 'MAX_TOKENS') {
-        log.warn('gemini.max_tokens', { thoughtsTokenCount: usage?.thoughtsTokenCount });
+        log.warn('gemini.max_tokens', { candidatesTokenCount: usage?.candidatesTokenCount });
+        // ส่ง reply จริงแทน DEFAULT_REPLY — ตัดข้อความสั้นลงให้ลงท้ายด้วย "ค่ะ"
+        const truncated = response.text?.trim() ?? '';
+        if (truncated) return truncated.endsWith('ค่ะ') ? truncated : truncated + '...(ติดต่อเพิ่มเติมที่ ' + PHONE + ' ค่ะ)';
         return DEFAULT_REPLY;
       }
 
