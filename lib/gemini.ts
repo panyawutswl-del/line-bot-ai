@@ -60,7 +60,8 @@ export async function generateReply(
         contents,
         config: {
           systemInstruction: buildSystemPrompt(faqText),
-          maxOutputTokens: 1024,
+          maxOutputTokens: 512,
+          thinkingConfig: { thinkingBudget: 0 },
         },
       });
 
@@ -92,7 +93,10 @@ export async function generateReply(
       const text = response.text?.trim();
       if (!text) throw new Error('gemini_empty_response');
 
-      addTurn(userId, userMessage, text);
+      // ไม่บันทึก default reply ลง history เพราะ context เสีย
+      if (text !== DEFAULT_REPLY) {
+        addTurn(userId, userMessage, text);
+      }
       return text;
     } catch (err) {
       if (isRetryable(err) && attempt < 3) {
