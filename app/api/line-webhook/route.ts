@@ -4,7 +4,7 @@ import { fetchFAQRows, matchFAQ } from '@/lib/sheet';
 import { generateReply, DEFAULT_REPLY } from '@/lib/gemini';
 import { getHistory } from '@/lib/history';
 import { replyText, replyFlex } from '@/lib/line';
-import { shouldHandoff, notifyAdmin } from '@/lib/handoff';
+import { shouldHandoff, notifyAdmin, notifyAdminBooking } from '@/lib/handoff';
 import { buildRoomsCarousel } from '@/lib/flex';
 import { fuzzyContains } from '@/lib/fuzzy';
 import { isPaused, pauseUser } from '@/lib/pause';
@@ -106,7 +106,15 @@ export async function POST(req: NextRequest) {
           .filter((r) => r.answer)
           .map((r) => `[${r.category}] ${r.question}\n→ ${r.answer}`)
           .join('\n\n');
-        const reply = await generateReply(userId, userMessage, faqText);
+        let reply = await generateReply(userId, userMessage, faqText);
+
+        // ตรวจจับ [HANDOFF:...] marker จาก Gemini booking flow
+        const handoffMatch = reply.match(/\[HANDOFF:([^\]]*)\]/);
+        if (handoffMatch) {
+          reply = reply.replace(/\s*\[HANDOFF:[^\]]*\]/, '').trim();
+          await notifyAdminBooking(userId, handoffMatch[1].trim());
+          log.info('webhook.booking_handoff', { userId });
+        }
 
         // 4. Reply กลับ LINE
         await replyText(replyToken, reply);

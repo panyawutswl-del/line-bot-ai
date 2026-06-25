@@ -9,10 +9,6 @@ const HANDOFF_TRIGGERS = [
   'คุยกับคน',
   'คุยกับแอดมิน',
   'ขอแอดมิน',
-  'จองห้อง',
-  'ต้องการจอง',
-  'ขอจอง',
-  'จองที่พัก',
   'ขอเจ้าของ',
   'ขอผู้จัดการ',
   'ขอพนักงาน',
@@ -28,6 +24,25 @@ const HANDOFF_TRIGGERS = [
 
 export function shouldHandoff(message: string): boolean {
   return HANDOFF_TRIGGERS.some((t) => fuzzyContains(message, t));
+}
+
+export async function notifyAdminBooking(userId: string, bookingSummary: string): Promise<void> {
+  const groupId = process.env.ADMIN_GROUP_ID;
+  if (!groupId) return;
+
+  try {
+    await client.pushMessage({
+      to: groupId,
+      messages: [
+        {
+          type: 'text',
+          text: `📋 มีคำขอจองห้องพักใหม่\n\nUserID: ${userId}\n\n${bookingSummary}\n\nตอบได้ที่: https://manager.line.biz/chats`,
+        },
+      ],
+    });
+  } catch (err) {
+    console.error('[handoff] notify admin booking failed:', err);
+  }
 }
 
 export async function notifyAdmin(userId: string, userMessage: string): Promise<void> {
