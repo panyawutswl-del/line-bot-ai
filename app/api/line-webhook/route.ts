@@ -10,6 +10,7 @@ import { fuzzyContains } from '@/lib/fuzzy';
 import { isPaused, pauseUser } from '@/lib/pause';
 import { addTurn } from '@/lib/history';
 import { log } from '@/lib/log';
+import { isBookingTrigger, hasActiveBooking, startBooking, handleBookingStep } from '@/lib/booking';
 
 export const maxDuration = 10;
 
@@ -48,7 +49,7 @@ export async function POST(req: NextRequest) {
         if (!process.env.ADMIN_GROUP_ID) {
           await replyText(replyToken, `ID ของ group นี้คือ:\n\n${sourceGroupId}\n\nนำไปใส่ใน Vercel\nSettings → Environment Variables\nชื่อ: ADMIN_GROUP_ID`);
         }
-        return; // ไม่ตอบ message ในกลุ่ม (กลุ่มไว้รับแจ้งเตือนเท่านั้น)
+        return;
       }
 
       try {
@@ -66,7 +67,28 @@ export async function POST(req: NextRequest) {
           return;
         }
 
-        // 2. ดึง FAQ rows (cached 60s)
+        // 3. Booking flow (state machine — bypass Gemini ทั้งหมด)
+        if (hasActiveBooking(userId)) {
+          const result = handleBookingStep(userId, userMessage);
+          if (result) {
+            await replyText(replyToken, result.reply);
+            if (result.summary) {
+              await notifyAdminBooking(userId, result.summary);
+              log.info('webhook.booking_complete', { userId });
+            }
+            log.info('webhook.booking_step', { userId, latencyMs: Date.now() - start });
+            return;
+          }
+        }
+
+        if (isBookingTrigger(userMessage)) {
+          const result = startBooking(userId);
+          await replyText(replyToken, result.reply);
+          log.info('webhook.booking_start', { userId, latencyMs: Date.now() - start });
+          return;
+        }
+
+        // 4. ดึง FAQ rows (cached 60s)
         let faqRows: Awaited<ReturnType<typeof fetchFAQRows>> = [];
         try {
           faqRows = await fetchFAQRows();
@@ -74,7 +96,7 @@ export async function POST(req: NextRequest) {
           log.warn('webhook.sheet_unavailable', { err: String(err) });
         }
 
-        // 3. Rooms Flex Message — ส่ง carousel ห้องพักเมื่อลูกค้าถามประเภทห้อง
+        // 5. Rooms Flex Message
         const ROOMS_TRIGGERS = ['ห้องพักแบบไหน', 'มีห้องอะไรบ้าง', 'ประเภทห้อง', 'ดูห้องพัก', 'รูปห้อง', 'แบบห้อง'];
         const isRoomsQuery = ROOMS_TRIGGERS.some((t) => fuzzyContains(userMessage, t));
         if (isRoomsQuery) {
@@ -90,11 +112,7 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        // 4. Booking intent detection — ส่ง Gemini พร้อม context ชัดๆ
-        const BOOKING_TRIGGERS = ['จองห้อง', 'ต้องการจอง', 'ขอจอง', 'จองที่พัก', 'อยากจอง', 'จะจอง', 'ทำจอง'];
-        const isBookingIntent = BOOKING_TRIGGERS.some((t) => fuzzyContains(userMessage, t));
-
-        // 5. Direct keyword match — ข้ามถ้าข้อความสั้น + มี history (คำถามต่อเนื่อง)
+        // 6. Direct keyword match
         const hasHistory = getHistory(userId).length > 0;
         const isFollowUp = hasHistory && userMessage.length < 15;
         const directAnswer = isFollowUp ? null : matchFAQ(userMessage, faqRows);
@@ -105,32 +123,15 @@ export async function POST(req: NextRequest) {
           return;
         }
 
-        // 4. Fallback → Gemini (สำหรับคำถามที่ไม่ match keyword)
+        // 7. Fallback → Gemini
         const faqText = faqRows
           .filter((r) => r.answer)
           .map((r) => `[${r.category}] ${r.question}\n→ ${r.answer}`)
           .join('\n\n');
-        const geminiMessage = isBookingIntent
-          ? `[BOOKING_REQUEST] ลูกค้าต้องการจองห้องพัก ข้อความ: "${userMessage}"`
-          : userMessage;
-        let reply = await generateReply(userId, geminiMessage, faqText);
+        const reply = await generateReply(userId, userMessage, faqText);
 
-        // ตรวจจับ [HANDOFF:...] marker จาก Gemini booking flow
-        const handoffMatch = reply.match(/\[HANDOFF:([^\]]*)\]/);
-        if (handoffMatch) {
-          reply = reply.replace(/\s*\[HANDOFF:[^\]]*\]/, '').trim();
-          await notifyAdminBooking(userId, handoffMatch[1].trim());
-          log.info('webhook.booking_handoff', { userId });
-        }
-
-        // 4. Reply กลับ LINE
         await replyText(replyToken, reply);
-
-        log.info('webhook.reply_sent', {
-          userId,
-          latencyMs: Date.now() - start,
-          replyLength: reply.length,
-        });
+        log.info('webhook.reply_sent', { userId, latencyMs: Date.now() - start, replyLength: reply.length });
       } catch (err) {
         log.error('webhook.event_error', {
           userId,
@@ -139,12 +140,11 @@ export async function POST(req: NextRequest) {
         try {
           await replyText(replyToken, DEFAULT_REPLY);
         } catch {
-          // replyToken expired — swallow เพื่อไม่ให้ webhook fail
+          // replyToken expired
         }
       }
     }),
   );
 
-  // ต้อง return 200 เสมอ — กัน LINE retry webhook ซ้ำ
   return NextResponse.json({ ok: true });
 }
