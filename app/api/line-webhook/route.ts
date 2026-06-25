@@ -3,8 +3,10 @@ import { validateSignature } from '@line/bot-sdk';
 import { fetchFAQRows, matchFAQ } from '@/lib/sheet';
 import { generateReply, DEFAULT_REPLY } from '@/lib/gemini';
 import { getHistory } from '@/lib/history';
-import { replyText } from '@/lib/line';
+import { replyText, replyFlex } from '@/lib/line';
 import { shouldHandoff, notifyAdmin } from '@/lib/handoff';
+import { buildRoomsCarousel } from '@/lib/flex';
+import { fuzzyContains } from '@/lib/fuzzy';
 import { isPaused, pauseUser } from '@/lib/pause';
 import { addTurn } from '@/lib/history';
 import { log } from '@/lib/log';
@@ -72,7 +74,23 @@ export async function POST(req: NextRequest) {
           log.warn('webhook.sheet_unavailable', { err: String(err) });
         }
 
-        // 3. Direct keyword match — ข้ามถ้าข้อความสั้น + มี history (คำถามต่อเนื่อง)
+        // 3. Rooms Flex Message — ส่ง carousel ห้องพักเมื่อลูกค้าถามประเภทห้อง
+        const ROOMS_TRIGGERS = ['ห้องพักแบบไหน', 'มีห้องอะไรบ้าง', 'ประเภทห้อง', 'ดูห้องพัก', 'รูปห้อง', 'แบบห้อง'];
+        const isRoomsQuery = ROOMS_TRIGGERS.some((t) => fuzzyContains(userMessage, t));
+        if (isRoomsQuery) {
+          const roomRows = faqRows.filter((r) =>
+            r.category.includes('ห้องพัก') || r.category.includes('ห้อง'),
+          );
+          if (roomRows.length > 0) {
+            const carousel = buildRoomsCarousel(roomRows);
+            await replyFlex(replyToken, 'ห้องพักของเรา', carousel);
+            addTurn(userId, userMessage, `[แสดงการ์ดห้องพัก ${roomRows.length} ประเภท]`);
+            log.info('webhook.rooms_flex', { userId, rooms: roomRows.length });
+            return;
+          }
+        }
+
+        // 4. Direct keyword match — ข้ามถ้าข้อความสั้น + มี history (คำถามต่อเนื่อง)
         const hasHistory = getHistory(userId).length > 0;
         const isFollowUp = hasHistory && userMessage.length < 10;
         const directAnswer = isFollowUp ? null : matchFAQ(userMessage, faqRows);

@@ -5,6 +5,30 @@ const client = new messagingApi.MessagingApiClient({
   channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN!,
 });
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function replyFlex(replyToken: string, altText: string, contents: any): Promise<void> {
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      await client.replyMessage({
+        replyToken,
+        messages: [{ type: 'flex', altText, contents }],
+      });
+      return;
+    } catch (err) {
+      const msg = String((err as Error)?.message ?? err);
+      if (msg.includes('Invalid reply token') || msg.includes('400')) {
+        log.warn('line.reply_token_expired', { attempt });
+        return;
+      }
+      if (attempt < 2) {
+        await new Promise((r) => setTimeout(r, 500 * attempt));
+        continue;
+      }
+      log.error('line.reply_failed', { err: msg });
+    }
+  }
+}
+
 export async function replyText(replyToken: string, text: string): Promise<void> {
   for (let attempt = 1; attempt <= 2; attempt++) {
     try {
