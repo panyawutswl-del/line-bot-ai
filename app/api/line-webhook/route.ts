@@ -90,7 +90,11 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        // 4. Direct keyword match — ข้ามถ้าข้อความสั้น + มี history (คำถามต่อเนื่อง)
+        // 4. Booking intent detection — ส่ง Gemini พร้อม context ชัดๆ
+        const BOOKING_TRIGGERS = ['จองห้อง', 'ต้องการจอง', 'ขอจอง', 'จองที่พัก', 'อยากจอง', 'จะจอง', 'ทำจอง'];
+        const isBookingIntent = BOOKING_TRIGGERS.some((t) => fuzzyContains(userMessage, t));
+
+        // 5. Direct keyword match — ข้ามถ้าข้อความสั้น + มี history (คำถามต่อเนื่อง)
         const hasHistory = getHistory(userId).length > 0;
         const isFollowUp = hasHistory && userMessage.length < 15;
         const directAnswer = isFollowUp ? null : matchFAQ(userMessage, faqRows);
@@ -106,7 +110,10 @@ export async function POST(req: NextRequest) {
           .filter((r) => r.answer)
           .map((r) => `[${r.category}] ${r.question}\n→ ${r.answer}`)
           .join('\n\n');
-        let reply = await generateReply(userId, userMessage, faqText);
+        const geminiMessage = isBookingIntent
+          ? `[BOOKING_REQUEST] ลูกค้าต้องการจองห้องพัก ข้อความ: "${userMessage}"`
+          : userMessage;
+        let reply = await generateReply(userId, geminiMessage, faqText);
 
         // ตรวจจับ [HANDOFF:...] marker จาก Gemini booking flow
         const handoffMatch = reply.match(/\[HANDOFF:([^\]]*)\]/);
