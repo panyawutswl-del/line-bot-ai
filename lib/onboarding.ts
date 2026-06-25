@@ -12,7 +12,7 @@ const sessions = new Map<string, OnboardingSession>();
 const TTL_MS = 10 * 60 * 1000; // 10 นาที
 
 const WELCOME =
-  'สวัสดีค่ะ ยินดีต้อนรับสู่ ศรีวิไล สุโขทัย รีสอร์ท แอนด์ สปา ดิฉันสุดา พนักงานต้อนรับค่ะ\n\nรบกวนขอทราบชื่อลูกค้าด้วยนะคะ';
+  'สวัสดีค่ะ ยินดีต้อนรับสู่ ศรีวิไล สุโขทัย รีสอร์ท แอนด์ สปา ดิฉันเป็นแชตบอทชื่อ ใบบัว เป็นผู้ช่วยพนักงานต้อนรับ ยินดีให้บริการค่ะ\n\nก่อนอื่นรบกวนขอทราบชื่อลูกค้าหน่อยค่ะ';
 
 export function startOnboarding(userId: string): string {
   sessions.set(userId, { step: 'name', expiresAt: Date.now() + TTL_MS });

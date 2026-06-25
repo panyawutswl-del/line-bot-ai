@@ -6,7 +6,7 @@ import { getHistory, addTurn } from '@/lib/history';
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
 const MODEL = 'gemini-2.5-flash';
-const BOT_NAME = 'สุดา';
+const BOT_NAME = 'ใบบัว';
 const BUSINESS_NAME = 'ศรีวิไล สุโขทัย รีสอร์ท แอนด์ สปา';
 const PHONE = '0941944122';
 
