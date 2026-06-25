@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
         if (shouldHandoff(userMessage)) {
           pauseUser(userId);
           await Promise.all([
-            replyText(replyToken, 'ขอแอดมินติดต่อกลับนะคะ 🙏'),
+            replyText(replyToken, 'ขออนุญาตให้แอดมินติดต่อกลับนะคะ 🙏'),
             notifyAdmin(userId, userMessage),
           ]);
           log.info('handoff.routed', { userId, latencyMs: Date.now() - start });
