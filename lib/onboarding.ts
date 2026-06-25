@@ -1,10 +1,7 @@
 import { saveProfile } from '@/lib/profile';
 
-type OnboardingStep = 'name' | 'phone';
-
 interface OnboardingSession {
-  step: OnboardingStep;
-  name?: string;
+  step: 'name';
   expiresAt: number;
 }
 
@@ -12,7 +9,7 @@ const sessions = new Map<string, OnboardingSession>();
 const TTL_MS = 10 * 60 * 1000; // 10 นาที
 
 const WELCOME =
-  'สวัสดีค่ะ ยินดีต้อนรับสู่ ศรีวิไล สุโขทัย รีสอร์ท แอนด์ สปา ดิฉันเป็นแชตบอทชื่อ ใบบัว เป็นผู้ช่วยพนักงานต้อนรับ ยินดีให้บริการค่ะ\n\nก่อนอื่นรบกวนขอทราบชื่อลูกค้าหน่อยค่ะ';
+  'สวัสดีค่ะ ยินดีต้อนรับสู่ ศรีวิไล สุโขทัย รีสอร์ท แอนด์ สปา ดิฉันเป็นแชตบอทชื่อ ใบบัว เป็นผู้ช่วยพนักงานต้อนรับ ยินดีให้บริการค่ะ\n\nก่อนอื่นรบกวนขอทราบชื่อลูกค้าหน่อยนะคะ';
 
 export function startOnboarding(userId: string): string {
   sessions.set(userId, { step: 'name', expiresAt: Date.now() + TTL_MS });
@@ -38,14 +35,8 @@ export async function handleOnboardingStep(userId: string, message: string): Pro
   session.expiresAt = Date.now() + TTL_MS;
 
   if (session.step === 'name') {
-    session.name = message.trim();
-    session.step = 'phone';
-    return { reply: `ขอบคุณค่ะ คุณ${session.name} รบกวนขอเบอร์โทรติดต่อด้วยนะคะ`, done: false };
-  }
-
-  if (session.step === 'phone') {
-    const name = session.name!;
-    await saveProfile(userId, name, message.trim());
+    const name = message.trim();
+    await saveProfile(userId, name, '');
     sessions.delete(userId);
     return {
       reply: `ขอบคุณค่ะ คุณ${name} มีอะไรให้ใบบัวช่วยได้บ้างคะ`,
