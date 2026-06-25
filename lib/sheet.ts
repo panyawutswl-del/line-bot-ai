@@ -59,14 +59,25 @@ async function getCache(): Promise<Cache> {
   }
 }
 
-// ตรวจ keyword ก่อน แล้วค่อยตรวจ question text — รองรับการสะกดผิดด้วย fuzzy
+// เลือก keyword ที่ยาวที่สุดที่ match (specific ที่สุด) ป้องกัน keyword กว้างๆ ชนะ keyword เฉพาะ
 // keyword < 5 ตัวอักษร ถือว่า ambiguous เกิน → ข้ามไป ให้ Gemini จัดการ
 export function matchFAQ(userMessage: string, rows: FAQRow[]): string | null {
+  let best: { answer: string; len: number } | null = null;
+
   for (const row of rows) {
     if (!row.answer) continue;
-    if (row.keywords.some((kw) => kw && kw.length >= 5 && fuzzyContains(userMessage, kw))) {
-      return row.answer;
+    for (const kw of row.keywords) {
+      if (!kw || kw.length < 5) continue;
+      if (fuzzyContains(userMessage, kw) && (!best || kw.length > best.len)) {
+        best = { answer: row.answer, len: kw.length };
+      }
     }
+  }
+  if (best) return best.answer;
+
+  // fallback: ตรวจ question text (ยาวกว่าจึงเฉพาะเจาะจงอยู่แล้ว)
+  for (const row of rows) {
+    if (!row.answer) continue;
     if (row.question && fuzzyContains(userMessage, row.question)) {
       return row.answer;
     }
