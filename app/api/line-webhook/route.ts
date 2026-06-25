@@ -6,6 +6,7 @@ import { getHistory } from '@/lib/history';
 import { replyText } from '@/lib/line';
 import { shouldHandoff, notifyAdmin } from '@/lib/handoff';
 import { isPaused, pauseUser } from '@/lib/pause';
+import { addTurn } from '@/lib/history';
 import { log } from '@/lib/log';
 
 export const maxDuration = 10;
@@ -76,6 +77,7 @@ export async function POST(req: NextRequest) {
         const isFollowUp = hasHistory && userMessage.length < 20;
         const directAnswer = isFollowUp ? null : matchFAQ(userMessage, faqRows);
         if (directAnswer) {
+          addTurn(userId, userMessage, directAnswer);
           await replyText(replyToken, directAnswer);
           log.info('webhook.direct_match', { userId, latencyMs: Date.now() - start });
           return;
