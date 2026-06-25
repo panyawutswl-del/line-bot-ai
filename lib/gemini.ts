@@ -12,9 +12,10 @@ const PHONE = '0941944122';
 
 export const DEFAULT_REPLY = `ขออภัยค่ะ เรื่องนี้ดิฉันไม่มีข้อมูลในระบบ รบกวนติดต่อเจ้าหน้าที่โดยตรงที่ ${PHONE} นะคะ`;
 
-function buildSystemPrompt(faqText: string): string {
+function buildSystemPrompt(faqText: string, customerName?: string): string {
+  const nameHint = customerName ? `\nชื่อลูกค้า: ${customerName} (เรียกลูกค้าว่า "คุณ${customerName}" เมื่อเหมาะสม)` : '';
   return `คุณคือ "${BOT_NAME}" พนักงานต้อนรับของ "${BUSINESS_NAME}"
-ตอบภาษาไทย สุภาพ ลงท้าย "ค่ะ" ห้ามใช้ markdown ตอบสั้นกระชับ ไม่เกิน 3-5 ประโยค
+ตอบภาษาไทย สุภาพ ลงท้าย "ค่ะ" ห้ามใช้ markdown ตอบสั้นกระชับ ไม่เกิน 3-5 ประโยค${nameHint}
 
 ข้อมูลโรงแรม (ใช้ตอบได้เลย):
 ที่ตั้ง: ติดอุทยานประวัติศาสตร์สุโขทัย อ.เมือง จ.สุโขทัย
@@ -47,6 +48,7 @@ export async function generateReply(
   userId: string,
   userMessage: string,
   faqText: string,
+  customerName?: string,
 ): Promise<string> {
   const start = Date.now();
 
@@ -65,7 +67,7 @@ export async function generateReply(
         model: MODEL,
         contents,
         config: {
-          systemInstruction: buildSystemPrompt(faqText),
+          systemInstruction: buildSystemPrompt(faqText, customerName),
           maxOutputTokens: 1024,
           thinkingConfig: { thinkingBudget: 0 },
         },

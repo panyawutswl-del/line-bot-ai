@@ -11,6 +11,8 @@ import { isPaused, pauseUser } from '@/lib/pause';
 import { addTurn } from '@/lib/history';
 import { log } from '@/lib/log';
 import { isBookingTrigger, hasActiveBooking, startBooking, handleBookingStep } from '@/lib/booking';
+import { getProfile } from '@/lib/profile';
+import { startOnboarding, hasActiveOnboarding, handleOnboardingStep } from '@/lib/onboarding';
 
 export const maxDuration = 10;
 
@@ -55,6 +57,22 @@ export async function POST(req: NextRequest) {
       try {
         // 1. ถ้าแอดมินกำลังคุยอยู่ → บอทหยุดตอบ 2 ชั่วโมง
         if (isPaused(userId)) return;
+
+        // 1b. Onboarding flow — ถามชื่อ + เบอร์ ครั้งแรกที่คุย
+        if (hasActiveOnboarding(userId)) {
+          const result = handleOnboardingStep(userId, userMessage);
+          if (result) {
+            await replyText(replyToken, result.reply);
+            log.info('webhook.onboarding_step', { userId, done: result.done });
+            return;
+          }
+        }
+        if (!getProfile(userId)) {
+          const welcome = startOnboarding(userId);
+          await replyText(replyToken, welcome);
+          log.info('webhook.onboarding_start', { userId });
+          return;
+        }
 
         // 2. Smart Handoff — pause user แล้วแจ้ง admin
         if (shouldHandoff(userMessage)) {
@@ -128,7 +146,8 @@ export async function POST(req: NextRequest) {
           .filter((r) => r.answer)
           .map((r) => `[${r.category}] ${r.question}\n→ ${r.answer}`)
           .join('\n\n');
-        const reply = await generateReply(userId, userMessage, faqText);
+        const profile = getProfile(userId);
+        const reply = await generateReply(userId, userMessage, faqText, profile?.name);
 
         await replyText(replyToken, reply);
         log.info('webhook.reply_sent', { userId, latencyMs: Date.now() - start, replyLength: reply.length });
