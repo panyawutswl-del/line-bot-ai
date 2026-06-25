@@ -24,22 +24,28 @@ export async function fetchFAQRows(): Promise<FAQRow[]> {
   return (await getCache()).rows;
 }
 
+async function fetchOneSheet(url: string): Promise<FAQRow[]> {
+  const res = await fetch(url.trim(), {
+    cache: 'no-store',
+    signal: AbortSignal.timeout(5_000),
+  });
+  if (!res.ok) throw new Error(`sheet fetch ${res.status} — ${url}`);
+  return csvToFaqRows(await res.text());
+}
+
 async function getCache(): Promise<Cache> {
   const now = Date.now();
   if (cache && cache.expiresAt > now) return cache;
 
-  const url = process.env.SHEET_CSV_URL;
-  if (!url) throw new Error('SHEET_CSV_URL not set');
+  const raw = process.env.SHEET_CSV_URL;
+  if (!raw) throw new Error('SHEET_CSV_URL not set');
+
+  // รองรับหลาย sheet คั่นด้วยคอมมา
+  const urls = raw.split(',').map((u) => u.trim()).filter(Boolean);
 
   try {
-    const res = await fetch(url, {
-      cache: 'no-store',
-      signal: AbortSignal.timeout(5_000),
-    });
-    if (!res.ok) throw new Error(`sheet fetch ${res.status}`);
-
-    const csv = await res.text();
-    const rows = csvToFaqRows(csv);
+    const results = await Promise.all(urls.map(fetchOneSheet));
+    const rows = results.flat();
     const text = rowsToText(rows);
 
     cache = { rows, text, expiresAt: now + CACHE_TTL_MS };
