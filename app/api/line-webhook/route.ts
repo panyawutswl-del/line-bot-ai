@@ -74,7 +74,7 @@ export async function POST(req: NextRequest) {
 
         // 3. Direct keyword match — ข้ามถ้าข้อความสั้น + มี history (คำถามต่อเนื่อง)
         const hasHistory = getHistory(userId).length > 0;
-        const isFollowUp = hasHistory && userMessage.length < 20;
+        const isFollowUp = hasHistory && userMessage.length < 10;
         const directAnswer = isFollowUp ? null : matchFAQ(userMessage, faqRows);
         if (directAnswer) {
           addTurn(userId, userMessage, directAnswer);
