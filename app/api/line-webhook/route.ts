@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { validateSignature } from '@line/bot-sdk';
 import { fetchFAQRows, matchFAQ } from '@/lib/sheet';
 import { generateReply, DEFAULT_REPLY } from '@/lib/gemini';
+import { getHistory } from '@/lib/history';
 import { replyText } from '@/lib/line';
 import { shouldHandoff, notifyAdmin } from '@/lib/handoff';
 import { isPaused, pauseUser } from '@/lib/pause';
@@ -70,8 +71,10 @@ export async function POST(req: NextRequest) {
           log.warn('webhook.sheet_unavailable', { err: String(err) });
         }
 
-        // 3. Direct keyword match — ตอบเลยโดยไม่เรียก Gemini
-        const directAnswer = matchFAQ(userMessage, faqRows);
+        // 3. Direct keyword match — ข้ามถ้าข้อความสั้น + มี history (คำถามต่อเนื่อง)
+        const hasHistory = getHistory(userId).length > 0;
+        const isFollowUp = hasHistory && userMessage.length < 20;
+        const directAnswer = isFollowUp ? null : matchFAQ(userMessage, faqRows);
         if (directAnswer) {
           await replyText(replyToken, directAnswer);
           log.info('webhook.direct_match', { userId, latencyMs: Date.now() - start });
