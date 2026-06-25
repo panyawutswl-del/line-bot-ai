@@ -31,7 +31,7 @@ export interface OnboardingResult {
   done: boolean;
 }
 
-export function handleOnboardingStep(userId: string, message: string): OnboardingResult | null {
+export async function handleOnboardingStep(userId: string, message: string): Promise<OnboardingResult | null> {
   const session = sessions.get(userId);
   if (!session || session.expiresAt < Date.now()) { sessions.delete(userId); return null; }
 
@@ -45,10 +45,10 @@ export function handleOnboardingStep(userId: string, message: string): Onboardin
 
   if (session.step === 'phone') {
     const name = session.name!;
-    saveProfile(userId, name, message.trim());
+    await saveProfile(userId, name, message.trim());
     sessions.delete(userId);
     return {
-      reply: `ขอบคุณค่ะ คุณ${name} มีอะไรให้สุดาช่วยได้บ้างคะ`,
+      reply: `ขอบคุณค่ะ คุณ${name} มีอะไรให้ใบบัวช่วยได้บ้างคะ`,
       done: true,
     };
   }

@@ -60,14 +60,14 @@ export async function POST(req: NextRequest) {
 
         // 1b. Onboarding flow — ถามชื่อ + เบอร์ ครั้งแรกที่คุย
         if (hasActiveOnboarding(userId)) {
-          const result = handleOnboardingStep(userId, userMessage);
+          const result = await handleOnboardingStep(userId, userMessage);
           if (result) {
             await replyText(replyToken, result.reply);
             log.info('webhook.onboarding_step', { userId, done: result.done });
             return;
           }
         }
-        if (!getProfile(userId)) {
+        if (!(await getProfile(userId))) {
           const welcome = startOnboarding(userId);
           await replyText(replyToken, welcome);
           log.info('webhook.onboarding_start', { userId });
@@ -146,7 +146,7 @@ export async function POST(req: NextRequest) {
           .filter((r) => r.answer)
           .map((r) => `[${r.category}] ${r.question}\n→ ${r.answer}`)
           .join('\n\n');
-        const profile = getProfile(userId);
+        const profile = await getProfile(userId);
         const reply = await generateReply(userId, userMessage, faqText, profile?.name);
 
         await replyText(replyToken, reply);
