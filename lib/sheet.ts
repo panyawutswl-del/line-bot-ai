@@ -60,10 +60,11 @@ async function getCache(): Promise<Cache> {
 }
 
 // ตรวจ keyword ก่อน แล้วค่อยตรวจ question text — รองรับการสะกดผิดด้วย fuzzy
+// keyword < 5 ตัวอักษร ถือว่า ambiguous เกิน → ข้ามไป ให้ Gemini จัดการ
 export function matchFAQ(userMessage: string, rows: FAQRow[]): string | null {
   for (const row of rows) {
     if (!row.answer) continue;
-    if (row.keywords.some((kw) => kw && fuzzyContains(userMessage, kw))) {
+    if (row.keywords.some((kw) => kw && kw.length >= 5 && fuzzyContains(userMessage, kw))) {
       return row.answer;
     }
     if (row.question && fuzzyContains(userMessage, row.question)) {
