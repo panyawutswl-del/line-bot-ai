@@ -92,7 +92,7 @@ export function hasActiveBooking(userId: string): boolean {
 
 export function startBooking(userId: string): BookingResult {
   sessions.set(userId, { step: 'date', expiresAt: Date.now() + TTL_MS });
-  return { reply: 'ยินดีช่วยค่ะ รบกวนแจ้งวันที่ต้องการเข้าพัก และวันที่ออกด้วยนะคะ\n(เช่น 22.01.68, 22ธค69, 22.10.69-25.10.69)' };
+  return { reply: 'ยินดีค่ะ รบกวนลูกค้าแจ้งวันที่ต้องการเข้าพัก ค่ะ' };
 }
 
 export function handleBookingStep(userId: string, message: string): BookingResult | null {
