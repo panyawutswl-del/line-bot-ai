@@ -1,4 +1,4 @@
-import { kv } from '@vercel/kv';
+import { Redis } from '@upstash/redis';
 
 export interface CustomerProfile {
   name: string;
@@ -6,17 +6,22 @@ export interface CustomerProfile {
   createdAt: number;
 }
 
-// In-memory fallback สำหรับ local dev (ไม่มี KV_URL)
+// In-memory fallback สำหรับ local dev (ไม่มี env vars)
 const localCache = new Map<string, CustomerProfile>();
 
-function isKvAvailable(): boolean {
-  return !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
+function getRedis(): Redis | null {
+  if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) return null;
+  return new Redis({
+    url: process.env.UPSTASH_REDIS_REST_URL,
+    token: process.env.UPSTASH_REDIS_REST_TOKEN,
+  });
 }
 
 export async function getProfile(userId: string): Promise<CustomerProfile | null> {
-  if (!isKvAvailable()) return localCache.get(userId) ?? null;
+  const redis = getRedis();
+  if (!redis) return localCache.get(userId) ?? null;
   try {
-    return await kv.get<CustomerProfile>(`profile:${userId}`);
+    return await redis.get<CustomerProfile>(`profile:${userId}`);
   } catch {
     return null;
   }
@@ -24,11 +29,11 @@ export async function getProfile(userId: string): Promise<CustomerProfile | null
 
 export async function saveProfile(userId: string, name: string, phone: string): Promise<void> {
   const profile: CustomerProfile = { name, phone, createdAt: Date.now() };
-  if (!isKvAvailable()) { localCache.set(userId, profile); return; }
+  const redis = getRedis();
+  if (!redis) { localCache.set(userId, profile); return; }
   try {
-    // เก็บตลอดไป (ไม่ expire) — ลูกค้ากลับมาครั้งต่อไปไม่ต้องถามใหม่
-    await kv.set(`profile:${userId}`, profile);
+    await redis.set(`profile:${userId}`, profile);
   } catch (err) {
-    console.error('[profile] kv.set failed:', err);
+    console.error('[profile] redis.set failed:', err);
   }
 }

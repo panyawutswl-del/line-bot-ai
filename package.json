@@ -10,7 +10,7 @@
   "dependencies": {
     "@google/genai": "^1",
     "@line/bot-sdk": "^9",
-    "@vercel/kv": "^3.0.0",
+    "@upstash/redis": "^1.38.0",
     "next": "^14",
     "react": "^18",
     "react-dom": "^18"
