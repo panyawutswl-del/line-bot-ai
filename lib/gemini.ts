@@ -2,6 +2,7 @@ import { GoogleGenAI } from '@google/genai';
 import { log } from '@/lib/log';
 import { getHistory, addTurn } from '@/lib/history';
 
+
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
 const MODEL = 'gemini-2.5-flash';
@@ -119,6 +120,7 @@ export async function generateReply(
       const text = response.text?.trim();
       if (!text) throw new Error('gemini_empty_response');
 
+      addTurn(userId, userMessage, text);
       return text;
     } catch (err) {
       if (isRetryable(err) && attempt < 3) {
