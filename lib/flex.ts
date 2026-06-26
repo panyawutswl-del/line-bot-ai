@@ -70,7 +70,6 @@ function buildBubble(room: FAQRow): object {
         {
           type: 'button',
           style: 'primary',
-          label: 'สอบถามเพิ่มเติม',
           height: 'sm',
           color: '#1a4a6e',
           action: {
