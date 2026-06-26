@@ -1,7 +1,5 @@
 import { FAQRow } from '@/lib/sheet';
 
-// สร้าง Flex Message carousel จาก FAQ rows ที่มีรูป
-// รองรับหลายรูปต่อห้อง โดยคั่น URL ด้วย | ในคอลัมน์ keyword
 export function buildRoomsCarousel(rooms: FAQRow[]): object {
   if (rooms.length === 0) {
     return {
@@ -14,47 +12,56 @@ export function buildRoomsCarousel(rooms: FAQRow[]): object {
     };
   }
 
-  // แต่ละห้องอาจมีหลายรูป → สร้างหลาย bubble ต่อห้อง
-  const bubbles = rooms.flatMap(buildBubbles).slice(0, 10);
+  const bubbles = rooms.slice(0, 10).map(buildBubble);
   return bubbles.length === 1 ? bubbles[0] : { type: 'carousel', contents: bubbles };
 }
 
-// แยก URL จาก keywords — รองรับ | คั่น URL หลายตัวในช่องเดียว
 function getImageUrls(room: FAQRow): string[] {
   const urls: string[] = [];
   for (const kw of room.keywords) {
     if (kw.startsWith('http')) {
-      // รองรับ URL เดี่ยว หรือหลาย URL คั่นด้วย |
       kw.split('|').forEach((u) => {
-        const trimmed = u.trim();
-        if (trimmed.startsWith('http')) urls.push(trimmed);
+        const t = u.trim();
+        if (t.startsWith('http')) urls.push(t);
       });
     }
   }
   return urls;
 }
 
-function buildBubbles(room: FAQRow): object[] {
+function buildBubble(room: FAQRow): object {
   const imageUrls = getImageUrls(room);
+  const mainImage = imageUrls[0];
+  const extraImages = imageUrls.slice(1, 4); // แสดงรูปเพิ่มได้สูงสุด 3 รูป
 
-  // ถ้าไม่มีรูปเลย → bubble เดียวไม่มี hero
-  if (imageUrls.length === 0) return [buildBubble(room, undefined, true)];
+  // thumbnail ของรูปเพิ่มเติม
+  const thumbnailRow = extraImages.length > 0
+    ? [{
+        type: 'box',
+        layout: 'horizontal',
+        spacing: 'sm',
+        margin: 'sm',
+        contents: extraImages.map((url) => ({
+          type: 'image',
+          url,
+          flex: 1,
+          aspectRatio: '1:1',
+          aspectMode: 'cover',
+          action: { type: 'uri', label: 'ดูรูป', uri: url },
+        })),
+      }]
+    : [];
 
-  // ถ้ามีหลายรูป → รูปแรกมี header+body+footer, รูปที่เหลือมีแค่ hero+header
-  return imageUrls.map((url, i) => buildBubble(room, url, i === 0));
-}
-
-function buildBubble(room: FAQRow, imageUrl: string | undefined, showDetail: boolean): object {
   return {
     type: 'bubble',
-    ...(imageUrl && {
+    ...(mainImage && {
       hero: {
         type: 'image',
-        url: imageUrl,
+        url: mainImage,
         size: 'full',
         aspectRatio: '20:13',
         aspectMode: 'cover',
-        action: { type: 'uri', label: 'ดูรูป', uri: imageUrl },
+        action: { type: 'uri', label: 'ดูรูป', uri: mainImage },
       },
     }),
     header: {
@@ -73,39 +80,38 @@ function buildBubble(room: FAQRow, imageUrl: string | undefined, showDetail: boo
         },
       ],
     },
-    ...(showDetail && {
-      body: {
-        type: 'box',
-        layout: 'vertical',
-        paddingAll: '12px',
-        contents: [
-          {
-            type: 'text',
-            text: room.answer,
-            size: 'sm',
-            wrap: true,
-            color: '#444444',
+    body: {
+      type: 'box',
+      layout: 'vertical',
+      paddingAll: '12px',
+      contents: [
+        {
+          type: 'text',
+          text: room.answer,
+          size: 'sm',
+          wrap: true,
+          color: '#444444',
+        },
+        ...thumbnailRow,
+      ],
+    },
+    footer: {
+      type: 'box',
+      layout: 'vertical',
+      spacing: 'sm',
+      contents: [
+        {
+          type: 'button',
+          style: 'primary',
+          height: 'sm',
+          color: '#1a4a6e',
+          action: {
+            type: 'message',
+            label: 'สอบถามเพิ่มเติม',
+            text: `สอบถาม${room.question}`,
           },
-        ],
-      },
-      footer: {
-        type: 'box',
-        layout: 'vertical',
-        spacing: 'sm',
-        contents: [
-          {
-            type: 'button',
-            style: 'primary',
-            height: 'sm',
-            color: '#1a4a6e',
-            action: {
-              type: 'message',
-              label: 'สอบถามเพิ่มเติม',
-              text: `สอบถาม${room.question}`,
-            },
-          },
-        ],
-      },
-    }),
+        },
+      ],
+    },
   };
 }
