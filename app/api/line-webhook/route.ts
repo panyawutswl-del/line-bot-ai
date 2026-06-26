@@ -116,8 +116,11 @@ export async function POST(req: NextRequest) {
 
         // 5. Rooms Flex Message
         const ROOMS_TRIGGERS = ['ห้องพักแบบไหน', 'มีห้องอะไรบ้าง', 'ประเภทห้อง', 'ดูห้องพัก', 'รูปห้อง', 'แบบห้อง'];
+        // ห้องพัก = row ที่มีรูป (keyword มี https://) หรือ category มีคำว่าห้อง
         const allRoomRows = faqRows.filter((r) =>
-          r.category.includes('ห้องพัก') || r.category.includes('ห้อง'),
+          r.keywords.some((kw) => kw.startsWith('https://')) ||
+          r.category.includes('ห้องพัก') ||
+          r.category.includes('ห้อง'),
         );
         // ถ้าพิมพ์ชื่อห้องตรงๆ เช่น "Deluxe Room" → แสดงเฉพาะห้องนั้น
         const matchedRoom = allRoomRows.find((r) =>
