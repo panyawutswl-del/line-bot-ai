@@ -79,6 +79,12 @@ function parseDate(raw: string): string {
   return raw;
 }
 
+// ตรวจว่า input เป็นวันที่จริงๆ (parse สำเร็จ = ผลลัพธ์ต่างจาก input)
+function isValidDate(raw: string): boolean {
+  const parsed = parseDate(raw.trim());
+  return parsed !== raw.trim();
+}
+
 export function isBookingTrigger(message: string): boolean {
   return BOOKING_TRIGGERS.some((t) => message.includes(t));
 }
@@ -102,6 +108,9 @@ export function handleBookingStep(userId: string, message: string): BookingResul
   session.expiresAt = Date.now() + TTL_MS;
 
   if (session.step === 'date') {
+    if (!isValidDate(message)) {
+      return { reply: 'ขออภัยค่ะ รบกวนแจ้งวันที่เข้าพักด้วยนะคะ เช่น 22.10.68 หรือ 22ตค68 ค่ะ' };
+    }
     const parsed = parseDate(message);
     session.date = parsed;
     session.step = 'guests';
