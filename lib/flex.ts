@@ -22,7 +22,6 @@ function buildBubble(room: FAQRow): object {
 
   return {
     type: 'bubble',
-    size: 'kilo',
     ...(imageUrl && {
       hero: {
         type: 'image',
@@ -30,6 +29,7 @@ function buildBubble(room: FAQRow): object {
         size: 'full',
         aspectRatio: '20:13',
         aspectMode: 'cover',
+        action: { type: 'uri', label: 'ดูรูป', uri: imageUrl },
       },
     }),
     header: {
