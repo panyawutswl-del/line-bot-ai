@@ -108,7 +108,7 @@ function buildBubble(room: FAQRow): object {
           action: {
             type: 'message',
             label: 'สอบถามเพิ่มเติม',
-            text: `สอบถาม${room.question}`,
+            text: `${room.question} detail`,
           },
         },
       ],
