@@ -16,6 +16,7 @@ export async function replyFlex(replyToken: string, altText: string, contents: a
       return;
     } catch (err) {
       const msg = String((err as Error)?.message ?? err);
+      log.error('line.flex_error', { attempt, err: msg });
       if (msg.includes('Invalid reply token') || msg.includes('400')) {
         log.warn('line.reply_token_expired', { attempt });
         return;
