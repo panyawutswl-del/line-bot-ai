@@ -116,18 +116,21 @@ export async function POST(req: NextRequest) {
 
         // 5. Rooms Flex Message
         const ROOMS_TRIGGERS = ['ห้องพักแบบไหน', 'มีห้องอะไรบ้าง', 'ประเภทห้อง', 'ดูห้องพัก', 'รูปห้อง', 'แบบห้อง'];
+        const allRoomRows = faqRows.filter((r) =>
+          r.category.includes('ห้องพัก') || r.category.includes('ห้อง'),
+        );
+        // ถ้าพิมพ์ชื่อห้องตรงๆ เช่น "Deluxe Room" → แสดงเฉพาะห้องนั้น
+        const matchedRoom = allRoomRows.find((r) =>
+          fuzzyContains(userMessage, r.question) || fuzzyContains(r.question, userMessage),
+        );
         const isRoomsQuery = ROOMS_TRIGGERS.some((t) => fuzzyContains(userMessage, t));
-        if (isRoomsQuery) {
-          const roomRows = faqRows.filter((r) =>
-            r.category.includes('ห้องพัก') || r.category.includes('ห้อง'),
-          );
-          if (roomRows.length > 0) {
-            const carousel = buildRoomsCarousel(roomRows);
-            await replyFlex(replyToken, 'ห้องพักของเรา', carousel);
-            addTurn(userId, userMessage, `[แสดงการ์ดห้องพัก ${roomRows.length} ประเภท]`);
-            log.info('webhook.rooms_flex', { userId, rooms: roomRows.length });
-            return;
-          }
+        const roomRows = matchedRoom ? [matchedRoom] : isRoomsQuery ? allRoomRows : [];
+        if (roomRows.length > 0) {
+          const carousel = buildRoomsCarousel(roomRows);
+          await replyFlex(replyToken, 'ห้องพักของเรา', carousel);
+          addTurn(userId, userMessage, `[แสดงการ์ดห้องพัก ${roomRows.length} ประเภท]`);
+          log.info('webhook.rooms_flex', { userId, rooms: roomRows.length });
+          return;
         }
 
         // 6. Direct keyword match
