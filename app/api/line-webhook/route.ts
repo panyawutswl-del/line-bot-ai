@@ -120,8 +120,11 @@ export async function POST(req: NextRequest) {
           'ห้องมีแบบไหน', 'อยากดูห้อง', 'ขอดูรูปห้อง', 'ดูรูปห้อง', 'ห้องพักมีอะไรบ้าง',
           'มีห้องพักแบบไหน', 'ห้องมีกี่แบบ', 'ห้องพักมีกี่แบบ', 'อยากเห็นห้อง', 'ขอดูห้อง',
         ];
+        // ข้อความที่ลงท้าย "detail" → ไปหา FAQ/Gemini ไม่ต้อง flex
+        const isDetailQuery = /detail\s*$/i.test(userMessage.trim());
+
         // ห้องพัก = row ที่มีรูป (keyword มี https://) เท่านั้น
-        const allRoomRows = faqRows.filter((r) =>
+        const allRoomRows = isDetailQuery ? [] : faqRows.filter((r) =>
           r.keywords.some((kw) => kw.startsWith('https://')),
         );
         log.info('webhook.room_debug', {
