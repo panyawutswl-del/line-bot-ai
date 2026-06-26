@@ -120,11 +120,9 @@ export async function POST(req: NextRequest) {
           'ห้องมีแบบไหน', 'อยากดูห้อง', 'ขอดูรูปห้อง', 'ดูรูปห้อง', 'ห้องพักมีอะไรบ้าง',
           'มีห้องพักแบบไหน', 'ห้องมีกี่แบบ', 'ห้องพักมีกี่แบบ', 'อยากเห็นห้อง', 'ขอดูห้อง',
         ];
-        // ห้องพัก = row ที่มีรูป (keyword มี https://) หรือ category มีคำว่าห้อง
+        // ห้องพัก = row ที่มีรูป (keyword มี https://) เท่านั้น
         const allRoomRows = faqRows.filter((r) =>
-          r.keywords.some((kw) => kw.startsWith('https://')) ||
-          r.category.includes('ห้องพัก') ||
-          r.category.includes('ห้อง'),
+          r.keywords.some((kw) => kw.startsWith('https://')),
         );
         log.info('webhook.room_debug', {
           totalRows: faqRows.length,
