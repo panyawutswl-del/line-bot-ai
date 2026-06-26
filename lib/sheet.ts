@@ -75,14 +75,15 @@ export function matchFAQ(userMessage: string, rows: FAQRow[]): string | null {
   }
   if (best) return best.answer;
 
-  // fallback: ตรวจ question text (ยาวกว่าจึงเฉพาะเจาะจงอยู่แล้ว)
+  // fallback: ตรวจ question text — เลือก question ที่ยาวที่สุดที่ match (specific ที่สุด)
+  let bestQ: { answer: string; len: number } | null = null;
   for (const row of rows) {
-    if (!row.answer) continue;
-    if (row.question && fuzzyContains(userMessage, row.question)) {
-      return row.answer;
+    if (!row.answer || !row.question) continue;
+    if (fuzzyContains(userMessage, row.question) && (!bestQ || row.question.length > bestQ.len)) {
+      bestQ = { answer: row.answer, len: row.question.length };
     }
   }
-  return null;
+  return bestQ?.answer ?? null;
 }
 
 function rowsToText(rows: FAQRow[]): string {
