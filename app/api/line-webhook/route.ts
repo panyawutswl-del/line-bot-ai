@@ -137,11 +137,13 @@ export async function POST(req: NextRequest) {
         );
         const isRoomsQuery = ROOMS_TRIGGERS.some((t) => fuzzyContains(userMessage, t));
         const roomRows = matchedRoom ? [matchedRoom] : isRoomsQuery ? allRoomRows : [];
+        log.info('webhook.room_check', { matched: !!matchedRoom, isRoomsQuery, roomRowsLen: roomRows.length });
         if (roomRows.length > 0) {
+          log.info('webhook.rooms_flex_attempt', { userId, rooms: roomRows.length });
           const carousel = buildRoomsCarousel(roomRows);
           await replyFlex(replyToken, 'ห้องพักของเรา', carousel);
           addTurn(userId, userMessage, `[แสดงการ์ดห้องพัก ${roomRows.length} ประเภท]`);
-          log.info('webhook.rooms_flex', { userId, rooms: roomRows.length });
+          log.info('webhook.rooms_flex_done', { userId, rooms: roomRows.length });
           return;
         }
 
