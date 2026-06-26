@@ -98,7 +98,7 @@ function csvToFaqRows(csv: string): FAQRow[] {
 
   const header = rows[0].map((h) => h.toLowerCase().trim());
   const activeIdx = header.indexOf('active');
-  const catIdx = header.findIndex((h) => h.includes('category') || h.includes('หมวด'));
+  const catIdx = header.findIndex((h) => h.includes('category') || h.includes('หมวด') || h.includes('หมู่'));
   const qIdx = header.findIndex((h) => h.includes('question') || h.includes('คำถาม'));
   const aIdx = header.findIndex((h) => h.includes('answer') || h.includes('คำตอบ'));
   const kIdx = header.findIndex((h) => h.includes('keyword'));
