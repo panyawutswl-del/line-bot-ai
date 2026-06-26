@@ -122,6 +122,11 @@ export async function POST(req: NextRequest) {
           r.category.includes('ห้องพัก') ||
           r.category.includes('ห้อง'),
         );
+        log.info('webhook.room_debug', {
+          totalRows: faqRows.length,
+          roomRows: allRoomRows.length,
+          sampleKeywords: JSON.stringify(faqRows.slice(0, 5).map((r) => ({ q: r.question, kw: r.keywords }))),
+        });
         // ถ้าพิมพ์ชื่อห้องตรงๆ เช่น "Deluxe Room" → แสดงเฉพาะห้องนั้น
         const matchedRoom = allRoomRows.find((r) =>
           fuzzyContains(userMessage, r.question) || fuzzyContains(r.question, userMessage),
