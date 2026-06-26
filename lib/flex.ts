@@ -107,8 +107,8 @@ function buildBubble(room: FAQRow): object {
           color: '#1a4a6e',
           action: {
             type: 'message',
-            label: 'สอบถามเพิ่มเติม',
-            text: `สอบถาม${room.question}`,
+            label: 'จองห้องพัก',
+            text: 'จองห้องพัก',
           },
         },
       ],
