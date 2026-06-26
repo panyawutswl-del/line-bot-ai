@@ -124,6 +124,8 @@ function csvToFaqRows(csv: string): FAQRow[] {
           .split(',')
           .map((k) => k.trim())
           .filter(Boolean),
+        // หมายเหตุ: URL หลายตัวในช่องเดียวใช้ | คั่น เช่น https://a.jpg|https://b.jpg
+        // flex.ts จะ split | ตอน render
       };
     })
     .filter((r) => r.answer);
