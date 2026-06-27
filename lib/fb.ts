@@ -31,13 +31,10 @@ export async function fbSendQuickReplies(
 ): Promise<void> {
   await fbPost(recipientId, {
     text: text.slice(0, 2000),
-    quick_replies: rooms.map((r) => {
-      const payload = `${r.title} detail`;
-      return {
-        content_type: 'text',
-        title: payload.slice(0, 20),
-        payload,
-      };
-    }),
+    quick_replies: rooms.map((r) => ({
+      content_type: 'text',
+      title: r.title.slice(0, 20),
+      payload: `${r.title} detail`,
+    })),
   });
 }

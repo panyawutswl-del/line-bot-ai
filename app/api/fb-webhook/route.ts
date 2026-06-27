@@ -161,10 +161,10 @@ export async function POST(req: NextRequest) {
             return;
           }
 
-          // 7. Direct keyword match
+          // 7. Direct keyword match (ข้าม matchFAQ ถ้าเป็น detail query → ให้ Gemini ตอบจาก FAQ text แทน)
           const hasHistory = getHistory(userId).length > 0;
           const isFollowUp = hasHistory && userMessage.length < 15;
-          const directAnswer = isFollowUp ? null : matchFAQ(userMessage, faqRows);
+          const directAnswer = isFollowUp || isDetailQuery ? null : matchFAQ(userMessage, faqRows);
           if (directAnswer) {
             addTurn(userId, userMessage, directAnswer);
             await send(directAnswer);
