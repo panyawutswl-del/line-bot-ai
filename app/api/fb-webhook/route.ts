@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyFbSignature, fbSendText } from '@/lib/fb';
+import { verifyFbSignature, fbSendText, fbSendQuickReplies } from '@/lib/fb';
 import { fetchFAQRows, matchFAQ } from '@/lib/sheet';
 import { generateReply, DEFAULT_REPLY } from '@/lib/gemini';
 import { getHistory } from '@/lib/history';
@@ -60,7 +60,9 @@ export async function POST(req: NextRequest) {
 
         const sender = event.sender as Record<string, unknown>;
         const userId = sender.id as string;
-        const userMessage = text.trim();
+        // ถ้ามาจาก quick reply ให้ใช้ payload แทน (เช่น "Sriwilai Suite detail")
+        const quickReply = msg.quick_reply as Record<string, string> | undefined;
+        const userMessage = (quickReply?.payload ?? text).trim();
         const start = Date.now();
 
         const send = (reply: string) => fbSendText(userId, reply);
@@ -141,9 +143,20 @@ export async function POST(req: NextRequest) {
           const roomRows = matchedRoom ? [matchedRoom] : isRoomsQuery ? allRoomRows : [];
 
           if (roomRows.length > 0) {
-            const lines = roomRows.map((r) => `🏨 ${r.question}\n${r.answer}`).join('\n\n');
-            await send(lines);
-            addTurn(userId, userMessage, `[แสดงข้อมูลห้องพัก ${roomRows.length} ประเภท]`);
+            if (matchedRoom) {
+              // ถ้าระบุห้องชัดเจน → ส่งรายละเอียดเลย
+              const lines = `🏨 ${matchedRoom.question}\n${matchedRoom.answer}`;
+              await send(lines);
+              addTurn(userId, userMessage, lines);
+            } else {
+              // ถามห้องทั่วไป → ส่ง quick replies ให้เลือก
+              await fbSendQuickReplies(
+                userId,
+                'มีห้องพักหลายประเภทค่ะ กดเลือกห้องที่สนใจได้เลยนะคะ',
+                roomRows.map((r) => ({ title: r.question })),
+              );
+              addTurn(userId, userMessage, `[แสดงตัวเลือกห้องพัก ${roomRows.length} ประเภท]`);
+            }
             log.info('fb.rooms_sent', { userId, rooms: roomRows.length });
             return;
           }
