@@ -74,24 +74,24 @@ export async function POST(req: NextRequest) {
           return;
         }
 
-        // 2. Quick Reply shortcuts (English triggers from buttons)
-        if (userMessage === 'Talk to Staff') {
+        // 2. Quick Reply shortcuts (button triggers)
+        if (userMessage === 'คุยกับเจ้าหน้าที่') {
           pauseUser(userId);
           await Promise.all([
-            replyText(replyToken, '🙏 Thank you for contacting Sriwilai Sukhothai Resort & Spa. Our staff will reply to you shortly.'),
+            replyText(replyToken, '🙏 ขอบคุณที่ติดต่อ Sriwilai Sukhothai Resort & Spa\nเจ้าหน้าที่ของเราจะตอบกลับโดยเร็วที่สุดค่ะ\n\nFor urgent assistance:\n📞 +66 94 194 4122'),
             notifyAdmin(userId, userMessage),
           ]);
           log.info('handoff.talk_to_staff', { userId });
           return;
         }
-        if (userMessage === 'Book a Room') {
+        if (userMessage === 'จองห้องพัก') {
           const result = startBooking(userId);
           await replyText(replyToken, result.reply);
           log.info('webhook.booking_start', { userId });
           return;
         }
-        if (userMessage === 'Contact Us') {
-          await replyTextWithQR(replyToken, 'ติดต่อเราได้ที่ ☎️ 094-194-4122 หรือส่งข้อความมาได้เลยค่ะ');
+        if (userMessage === 'ติดต่อเรา') {
+          await replyTextWithQR(replyToken, 'Sriwilai Sukhothai Resort & Spa\n\n📞 +66 94 194 4122\n📧 info@sriwilaisukhothai.com\n📍 https://maps.google.com/?q=Sriwilai+Sukhothai');
           return;
         }
 

@@ -3,9 +3,9 @@ import { log } from '@/lib/log';
 
 const QUICK_REPLIES: messagingApi.QuickReply = {
   items: [
-    { type: 'action', action: { type: 'message', label: '🏨 Book a Room', text: 'Book a Room' } },
-    { type: 'action', action: { type: 'message', label: '📍 Contact Us',  text: 'Contact Us'  } },
-    { type: 'action', action: { type: 'message', label: '💬 Talk to Staff', text: 'Talk to Staff' } },
+    { type: 'action', action: { type: 'message', label: '🏨 จองห้องพัก | Book a Room',      text: 'จองห้องพัก' } },
+    { type: 'action', action: { type: 'message', label: '📍 ติดต่อเรา | Contact Us',         text: 'ติดต่อเรา' } },
+    { type: 'action', action: { type: 'message', label: '💬 คุยกับเจ้าหน้าที่ | Talk to Staff', text: 'คุยกับเจ้าหน้าที่' } },
   ],
 };
 
