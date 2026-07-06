@@ -3,7 +3,7 @@ import { validateSignature } from '@line/bot-sdk';
 import { fetchFAQRows, matchFAQ } from '@/lib/sheet';
 import { generateReply, DEFAULT_REPLY } from '@/lib/gemini';
 import { getHistory } from '@/lib/history';
-import { replyText, replyFlex } from '@/lib/line';
+import { replyText, replyTextWithQR, replyFlex } from '@/lib/line';
 import { shouldHandoff, notifyAdmin, notifyAdminBooking } from '@/lib/handoff';
 import { buildRoomsCarousel } from '@/lib/flex';
 import { fuzzyContains } from '@/lib/fuzzy';
@@ -74,7 +74,28 @@ export async function POST(req: NextRequest) {
           return;
         }
 
-        // 2. Smart Handoff — pause user แล้วแจ้ง admin
+        // 2. Quick Reply shortcuts (English triggers from buttons)
+        if (userMessage === 'Talk to Staff') {
+          pauseUser(userId);
+          await Promise.all([
+            replyText(replyToken, '🙏 Thank you for contacting Sriwilai Sukhothai Resort & Spa. Our staff will reply to you shortly.'),
+            notifyAdmin(userId, userMessage),
+          ]);
+          log.info('handoff.talk_to_staff', { userId });
+          return;
+        }
+        if (userMessage === 'Book a Room') {
+          const result = startBooking(userId);
+          await replyText(replyToken, result.reply);
+          log.info('webhook.booking_start', { userId });
+          return;
+        }
+        if (userMessage === 'Contact Us') {
+          await replyTextWithQR(replyToken, 'ติดต่อเราได้ที่ ☎️ 094-194-4122 หรือส่งข้อความมาได้เลยค่ะ');
+          return;
+        }
+
+        // 4. Smart Handoff — pause user แล้วแจ้ง admin
         if (shouldHandoff(userMessage)) {
           pauseUser(userId);
           await Promise.all([
@@ -85,11 +106,13 @@ export async function POST(req: NextRequest) {
           return;
         }
 
-        // 3. Booking flow (state machine — bypass Gemini ทั้งหมด)
+        // 5. Booking flow (state machine — bypass Gemini ทั้งหมด)
         if (hasActiveBooking(userId)) {
           const result = handleBookingStep(userId, userMessage);
           if (result) {
-            await replyText(replyToken, result.reply);
+            // booking complete → show QR, steps → plain (user needs to type)
+            const send = result.summary ? replyTextWithQR : replyText;
+            await send(replyToken, result.reply);
             if (result.summary) {
               await notifyAdminBooking(userId, result.summary);
               log.info('webhook.booking_complete', { userId });
@@ -155,7 +178,7 @@ export async function POST(req: NextRequest) {
         const directAnswer = isFollowUp ? null : matchFAQ(userMessage, faqRows);
         if (directAnswer) {
           addTurn(userId, userMessage, directAnswer);
-          await replyText(replyToken, directAnswer);
+          await replyTextWithQR(replyToken, directAnswer);
           log.info('webhook.direct_match', { userId, latencyMs: Date.now() - start });
           return;
         }
@@ -168,7 +191,7 @@ export async function POST(req: NextRequest) {
         const profile = await getProfile(userId);
         const reply = await generateReply(userId, userMessage, faqText, profile?.name);
 
-        await replyText(replyToken, reply);
+        await replyTextWithQR(replyToken, reply);
         log.info('webhook.reply_sent', { userId, latencyMs: Date.now() - start, replyLength: reply.length });
       } catch (err) {
         log.error('webhook.event_error', {
