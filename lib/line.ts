@@ -3,9 +3,9 @@ import { log } from '@/lib/log';
 
 const QUICK_REPLIES: messagingApi.QuickReply = {
   items: [
-    { type: 'action', action: { type: 'message', label: '🏨 จองห้องพัก | Book a Room',      text: 'จองห้องพัก' } },
-    { type: 'action', action: { type: 'message', label: '📍 ติดต่อเรา | Contact Us',         text: 'ติดต่อเรา' } },
-    { type: 'action', action: { type: 'message', label: '💬 คุยกับเจ้าหน้าที่ | Talk to Staff', text: 'คุยกับเจ้าหน้าที่' } },
+    { type: 'action', action: { type: 'message', label: '🏨 จองห้องพัก',      text: 'จองห้องพัก' } },
+    { type: 'action', action: { type: 'message', label: '📍 ติดต่อเรา',        text: 'ติดต่อเรา' } },
+    { type: 'action', action: { type: 'message', label: '💬 คุยกับเจ้าหน้าที่', text: 'คุยกับเจ้าหน้าที่' } },
   ],
 };
 
@@ -48,7 +48,7 @@ export async function replyTextWithQR(replyToken: string, text: string): Promise
       return;
     } catch (err) {
       const msg = String((err as Error)?.message ?? err);
-      if (msg.includes('Invalid reply token') || msg.includes('400')) {
+      if (msg.includes('Invalid reply token')) {
         log.warn('line.reply_token_expired', { attempt });
         return;
       }
