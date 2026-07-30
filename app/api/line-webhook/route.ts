@@ -3,7 +3,7 @@ import { validateSignature } from '@line/bot-sdk';
 import { fetchFAQRows, matchFAQ } from '@/lib/sheet';
 import { generateReply, DEFAULT_REPLY } from '@/lib/gemini';
 import { getHistory } from '@/lib/history';
-import { replyText, replyTextWithQR, replyFlex } from '@/lib/line';
+import { replyText, replyTextWithQR, replyFlex, pushText } from '@/lib/line';
 import { shouldHandoff, notifyAdmin, notifyAdminBooking } from '@/lib/handoff';
 import { buildRoomsCarousel } from '@/lib/flex';
 import { fuzzyContains } from '@/lib/fuzzy';
@@ -11,6 +11,7 @@ import { isPaused, pauseUser } from '@/lib/pause';
 import { addTurn } from '@/lib/history';
 import { log } from '@/lib/log';
 import { isBookingTrigger, hasActiveBooking, startBooking, handleBookingStep } from '@/lib/booking';
+import { shouldSendDailyWelcome } from '@/lib/greeting';
 
 export const maxDuration = 10;
 
@@ -43,6 +44,7 @@ export async function POST(req: NextRequest) {
         const followUserId = (event.source as Record<string, unknown> | undefined)?.userId as string | undefined;
         try {
           await replyTextWithQR(replyToken, WELCOME_MESSAGE);
+          if (followUserId) shouldSendDailyWelcome(followUserId); // กันไม่ให้ทักซ้ำจากข้อความแรกของวันเดียวกัน
           log.info('webhook.follow_welcome', { userId: followUserId });
         } catch (err) {
           log.error('webhook.follow_error', { err: String((err as Error)?.message ?? err) });
@@ -73,6 +75,12 @@ export async function POST(req: NextRequest) {
       try {
         // 1. ถ้าแอดมินกำลังคุยอยู่ → บอทหยุดตอบ 2 ชั่วโมง
         if (isPaused(userId)) return;
+
+        // 1c. ทักครั้งแรกของวัน (เวลาไทย) → ส่งข้อความต้อนรับ แล้วค่อยตอบข้อความปกติต่อ
+        if (shouldSendDailyWelcome(userId)) {
+          await pushText(userId, WELCOME_MESSAGE);
+          log.info('webhook.daily_welcome', { userId });
+        }
 
         // 2. Quick Reply shortcuts (button triggers)
         if (userMessage === 'คุยกับเจ้าหน้าที่') {
