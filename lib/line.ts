@@ -61,6 +61,14 @@ export async function replyTextWithQR(replyToken: string, text: string): Promise
   }
 }
 
+export async function pushText(userId: string, text: string): Promise<void> {
+  try {
+    await client.pushMessage({ to: userId, messages: [{ type: 'text', text }] });
+  } catch (err) {
+    log.error('line.push_failed', { err: String((err as Error)?.message ?? err) });
+  }
+}
+
 export async function replyText(replyToken: string, text: string): Promise<void> {
   for (let attempt = 1; attempt <= 2; attempt++) {
     try {
