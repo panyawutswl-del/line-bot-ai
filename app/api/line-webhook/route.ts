@@ -72,8 +72,8 @@ export async function POST(req: NextRequest) {
           log.info('webhook.booking_start', { userId });
           return;
         }
-        if (userMessage === 'ติดต่อเรา') {
-          await replyTextWithQR(replyToken, 'Sriwilai Sukhothai Resort & Spa\n\n📞 +66 94 194 4122\n📧 info@sriwilaisukhothai.com\n📍 https://maps.google.com/?q=Sriwilai+Sukhothai');
+        if (userMessage === 'โทรหาเรา') {
+          await replyTextWithQR(replyToken, 'Sriwilai Sukhothai Resort & Spa\n\n📞 0941944122\n📧 info@sriwilaisukhothai.com\n📍 https://maps.google.com/?q=Sriwilai+Sukhothai');
           return;
         }
 
