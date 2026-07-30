@@ -14,6 +14,11 @@ import { isBookingTrigger, hasActiveBooking, startBooking, handleBookingStep } f
 
 export const maxDuration = 10;
 
+const WELCOME_MESSAGE = `🌿 Welcome to Sriwilai Sukhothai Resort & Spa
+ขอบพระคุณที่ให้ความสนใจโรงแรมศรีวิไล สุโขทัย
+เรายินดีดูแลทุกการเข้าพักของคุณ ไม่ว่าจะเป็นการสำรองห้องพัก สปา ห้องอาหาร หรือสอบถามข้อมูลการเดินทาง
+วันนี้เราสามารถช่วยคุณเรื่องใดได้บ้างคะ 😊`;
+
 export async function POST(req: NextRequest) {
   const signature = req.headers.get('x-line-signature') ?? '';
   const rawBody = await req.text();
@@ -32,6 +37,19 @@ export async function POST(req: NextRequest) {
 
   await Promise.allSettled(
     events.map(async (event) => {
+      // ลูกค้ากดเพิ่มเพื่อน (Add Friend) → ส่งข้อความต้อนรับ
+      if (event.type === 'follow') {
+        const replyToken = event.replyToken as string;
+        const followUserId = (event.source as Record<string, unknown> | undefined)?.userId as string | undefined;
+        try {
+          await replyTextWithQR(replyToken, WELCOME_MESSAGE);
+          log.info('webhook.follow_welcome', { userId: followUserId });
+        } catch (err) {
+          log.error('webhook.follow_error', { err: String((err as Error)?.message ?? err) });
+        }
+        return;
+      }
+
       if (event.type !== 'message') return;
 
       const message = event.message as Record<string, unknown> | undefined;
@@ -72,8 +90,8 @@ export async function POST(req: NextRequest) {
           log.info('webhook.booking_start', { userId });
           return;
         }
-        if (userMessage === 'โทรหาเรา') {
-          await replyTextWithQR(replyToken, 'Sriwilai Sukhothai Resort & Spa\n\n📞 +66 94 194 4122\n📧 info@sriwilaisukhothai.com\n📍 https://maps.google.com/?q=Sriwilai+Sukhothai');
+        if (userMessage === 'ติดต่อเรา') {
+          await replyTextWithQR(replyToken, 'Sriwilai Sukhothai Resort & Spa\n\n📞 +66 94 194 4122\n\n📧 info@sriwilaisukhothai.com\n\n📍 https://maps.google.com/?q=Sriwilai+Sukhothai');
           return;
         }
 
