@@ -11,7 +11,7 @@ import { isPaused, pauseUser } from '@/lib/pause';
 import { addTurn } from '@/lib/history';
 import { log } from '@/lib/log';
 import { isBookingTrigger, hasActiveBooking, startBooking, handleBookingStep } from '@/lib/booking';
-import { shouldSendDailyWelcome } from '@/lib/greeting';
+import { shouldSendDailyWelcome, isGreetingOnly } from '@/lib/greeting';
 
 export const maxDuration = 10;
 
@@ -134,6 +134,12 @@ export async function POST(req: NextRequest) {
           const result = startBooking(userId);
           await replyText(replyToken, result.reply);
           log.info('webhook.booking_start', { userId, latencyMs: Date.now() - start });
+          return;
+        }
+
+        // 3b. ทักทายเฉยๆ ไม่มีคำถามจริง → ไม่ตอบซ้ำ (ข้อความต้อนรับส่งไปให้แล้วตอนต้น turn นี้)
+        if (isGreetingOnly(userMessage)) {
+          log.info('webhook.greeting_skip', { userId });
           return;
         }
 
