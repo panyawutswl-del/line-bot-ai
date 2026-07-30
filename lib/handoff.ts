@@ -45,6 +45,25 @@ export async function notifyAdminBooking(userId: string, bookingSummary: string)
   }
 }
 
+export async function notifyAdminCallback(userId: string, question: string, phone: string): Promise<void> {
+  const groupId = process.env.ADMIN_GROUP_ID;
+  if (!groupId) return;
+
+  try {
+    await client.pushMessage({
+      to: groupId,
+      messages: [
+        {
+          type: 'text',
+          text: `📞 ลูกค้าขอให้ติดต่อกลับ (บอทไม่มีข้อมูลตอบ)\n\nUserID: ${userId}\nคำถาม: ${question}\nเบอร์ติดต่อ: ${phone}\n\nตอบได้ที่: https://manager.line.biz/chats`,
+        },
+      ],
+    });
+  } catch (err) {
+    console.error('[handoff] notify admin callback failed:', err);
+  }
+}
+
 export async function notifyAdmin(userId: string, userMessage: string): Promise<void> {
   const groupId = process.env.ADMIN_GROUP_ID;
   if (!groupId) return;
