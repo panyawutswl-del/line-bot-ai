@@ -8,8 +8,6 @@ import { shouldHandoff, notifyAdmin, notifyAdminBooking } from '@/lib/handoff';
 import { fuzzyContains } from '@/lib/fuzzy';
 import { isPaused, pauseUser } from '@/lib/pause';
 import { isBookingTrigger, hasActiveBooking, startBooking, handleBookingStep } from '@/lib/booking';
-import { startOnboarding, hasActiveOnboarding, handleOnboardingStep } from '@/lib/onboarding';
-import { getProfile } from '@/lib/profile';
 import { log } from '@/lib/log';
 
 export const maxDuration = 10;
@@ -70,21 +68,6 @@ export async function POST(req: NextRequest) {
         try {
           // 1. แอดมิน handoff pause
           if (isPaused(userId)) return;
-
-          // 2. Onboarding — ถามชื่อครั้งแรก
-          if (hasActiveOnboarding(userId)) {
-            const result = await handleOnboardingStep(userId, userMessage);
-            if (result) {
-              await send(result.reply);
-              log.info('fb.onboarding_step', { userId, done: result.done });
-              return;
-            }
-          }
-          if (!(await getProfile(userId))) {
-            await send(startOnboarding(userId));
-            log.info('fb.onboarding_start', { userId });
-            return;
-          }
 
           // 3. Smart Handoff
           if (shouldHandoff(userMessage)) {
@@ -177,8 +160,7 @@ export async function POST(req: NextRequest) {
             .filter((r) => r.answer)
             .map((r) => `[${r.category}] ${r.question}\n→ ${r.answer}`)
             .join('\n\n');
-          const profile = await getProfile(userId);
-          const reply = await generateReply(userId, userMessage, faqText, profile?.name);
+          const reply = await generateReply(userId, userMessage, faqText);
           await send(reply);
           log.info('fb.reply_sent', { userId, latencyMs: Date.now() - start });
         } catch (err) {
