@@ -11,8 +11,6 @@ import { isPaused, pauseUser } from '@/lib/pause';
 import { addTurn } from '@/lib/history';
 import { log } from '@/lib/log';
 import { isBookingTrigger, hasActiveBooking, startBooking, handleBookingStep } from '@/lib/booking';
-import { getProfile } from '@/lib/profile';
-import { startOnboarding, hasActiveOnboarding, handleOnboardingStep } from '@/lib/onboarding';
 
 export const maxDuration = 10;
 
@@ -58,22 +56,6 @@ export async function POST(req: NextRequest) {
         // 1. ถ้าแอดมินกำลังคุยอยู่ → บอทหยุดตอบ 2 ชั่วโมง
         if (isPaused(userId)) return;
 
-        // 1b. Onboarding flow — ถามชื่อ + เบอร์ ครั้งแรกที่คุย
-        if (hasActiveOnboarding(userId)) {
-          const result = await handleOnboardingStep(userId, userMessage);
-          if (result) {
-            await replyText(replyToken, result.reply);
-            log.info('webhook.onboarding_step', { userId, done: result.done });
-            return;
-          }
-        }
-        if (!(await getProfile(userId))) {
-          const welcome = startOnboarding(userId);
-          await replyText(replyToken, welcome);
-          log.info('webhook.onboarding_start', { userId });
-          return;
-        }
-
         // 2. Quick Reply shortcuts (button triggers)
         if (userMessage === 'คุยกับเจ้าหน้าที่') {
           pauseUser(userId);
@@ -90,7 +72,7 @@ export async function POST(req: NextRequest) {
           log.info('webhook.booking_start', { userId });
           return;
         }
-        if (userMessage === 'ติดต่อเรา') {
+        if (userMessage === 'โทรหาเรา') {
           await replyTextWithQR(replyToken, 'Sriwilai Sukhothai Resort & Spa\n\n📞 +66 94 194 4122\n📧 info@sriwilaisukhothai.com\n📍 https://maps.google.com/?q=Sriwilai+Sukhothai');
           return;
         }
@@ -188,8 +170,7 @@ export async function POST(req: NextRequest) {
           .filter((r) => r.answer)
           .map((r) => `[${r.category}] ${r.question}\n→ ${r.answer}`)
           .join('\n\n');
-        const profile = await getProfile(userId);
-        const reply = await generateReply(userId, userMessage, faqText, profile?.name);
+        const reply = await generateReply(userId, userMessage, faqText);
 
         await replyTextWithQR(replyToken, reply);
         log.info('webhook.reply_sent', { userId, latencyMs: Date.now() - start, replyLength: reply.length });

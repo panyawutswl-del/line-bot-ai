@@ -85,6 +85,15 @@ function isValidDate(raw: string): boolean {
   return parsed !== raw.trim();
 }
 
+// ตรวจว่า input เป็นเบอร์โทรจริง — ตัวเลขล้วน 10 หลัก ขึ้นต้นด้วย 0 (เว้นวรรค/ขีดคั่นได้)
+function normalizePhone(raw: string): string {
+  return raw.trim().replace(/[\s-]/g, '');
+}
+
+function isValidPhone(raw: string): boolean {
+  return /^0\d{9}$/.test(normalizePhone(raw));
+}
+
 export function isBookingTrigger(message: string): boolean {
   return BOOKING_TRIGGERS.some((t) => message.includes(t));
 }
@@ -124,7 +133,11 @@ export function handleBookingStep(userId: string, message: string): BookingResul
   }
 
   if (session.step === 'phone') {
-    const summary = `วันเข้าพัก: ${session.date}\nจำนวนผู้เข้าพัก: ${session.guests}\nเบอร์ติดต่อ: ${message}`;
+    if (!isValidPhone(message)) {
+      return { reply: 'ขออภัยค่ะ รบกวนใส่เบอร์โทรศัพท์จริงให้ครบ 10 หลัก เช่น 0941944122 นะคะ' };
+    }
+    const phone = normalizePhone(message);
+    const summary = `วันเข้าพัก: ${session.date}\nจำนวนผู้เข้าพัก: ${session.guests}\nเบอร์ติดต่อ: ${phone}`;
     sessions.delete(userId);
     return {
       reply: `ขอบคุณค่ะ สรุปข้อมูลการจอง:\n${summary}\n\nดิฉันจะแจ้งเจ้าหน้าที่ติดต่อกลับเพื่อยืนยันการจองนะคะ`,

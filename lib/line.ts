@@ -4,7 +4,7 @@ import { log } from '@/lib/log';
 const QUICK_REPLIES: messagingApi.QuickReply = {
   items: [
     { type: 'action', action: { type: 'message', label: '🏨 จองห้องพัก',      text: 'จองห้องพัก' } },
-    { type: 'action', action: { type: 'message', label: '📍 ติดต่อเรา',        text: 'ติดต่อเรา' } },
+    { type: 'action', action: { type: 'message', label: '📞 โทรหาเรา',        text: 'โทรหาเรา' } },
     { type: 'action', action: { type: 'message', label: '💬 คุยกับเจ้าหน้าที่', text: 'คุยกับเจ้าหน้าที่' } },
   ],
 };
