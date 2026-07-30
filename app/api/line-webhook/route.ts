@@ -4,7 +4,7 @@ import { fetchFAQRows, matchFAQ } from '@/lib/sheet';
 import { generateReply, DEFAULT_REPLY } from '@/lib/gemini';
 import { getHistory } from '@/lib/history';
 import { replyText, replyTextWithQR, replyFlex, pushText } from '@/lib/line';
-import { shouldHandoff, notifyAdmin, notifyAdminBooking } from '@/lib/handoff';
+import { shouldHandoff, notifyAdmin, notifyAdminBooking, notifyAdminCallback } from '@/lib/handoff';
 import { buildRoomsCarousel } from '@/lib/flex';
 import { fuzzyContains } from '@/lib/fuzzy';
 import { isPaused, pauseUser } from '@/lib/pause';
@@ -12,13 +12,14 @@ import { addTurn } from '@/lib/history';
 import { log } from '@/lib/log';
 import { isBookingTrigger, hasActiveBooking, startBooking, handleBookingStep } from '@/lib/booking';
 import { shouldSendDailyWelcome, isGreetingOnly } from '@/lib/greeting';
+import { hasActiveCallbackRequest, startCallbackRequest, handleCallbackStep } from '@/lib/callback';
 
 export const maxDuration = 10;
 
 const WELCOME_MESSAGE = `🌿 Welcome to Sriwilai Sukhothai Resort & Spa
 ขอบพระคุณที่ให้ความสนใจโรงแรมศรีวิไล สุโขทัย
 เรายินดีดูแลทุกการเข้าพักของคุณ ไม่ว่าจะเป็นการสำรองห้องพัก สปา ห้องอาหาร หรือสอบถามข้อมูลการเดินทาง
-วันนี้เราสามารถช่วยคุณเรื่องใดได้บ้างคะ 😊`;
+ดิฉันเป็นแชตบอทชื่อ ใบบัว เป็นผู้ช่วยพนักงานต้อนรับ ยินดีให้บริการค่ะ`;
 
 export async function POST(req: NextRequest) {
   const signature = req.headers.get('x-line-signature') ?? '';
@@ -137,6 +138,20 @@ export async function POST(req: NextRequest) {
           return;
         }
 
+        // 5b. Callback flow — รอเบอร์โทรหลังบอทแจ้งว่าไม่มีข้อมูลตอบ
+        if (hasActiveCallbackRequest(userId)) {
+          const result = handleCallbackStep(userId, userMessage);
+          if (result) {
+            await replyTextWithQR(replyToken, result.reply);
+            if (result.phone) {
+              await notifyAdminCallback(userId, result.question ?? '', result.phone);
+              log.info('webhook.callback_complete', { userId });
+            }
+            log.info('webhook.callback_step', { userId, latencyMs: Date.now() - start });
+            return;
+          }
+        }
+
         // 3b. ทักทายเฉยๆ ไม่มีคำถามจริง → ไม่ตอบซ้ำ (ข้อความต้อนรับส่งไปให้แล้วตอนต้น turn นี้)
         if (isGreetingOnly(userMessage)) {
           log.info('webhook.greeting_skip', { userId });
@@ -203,6 +218,13 @@ export async function POST(req: NextRequest) {
           .map((r) => `[${r.category}] ${r.question}\n→ ${r.answer}`)
           .join('\n\n');
         const reply = await generateReply(userId, userMessage, faqText);
+
+        if (reply === DEFAULT_REPLY) {
+          const askReply = startCallbackRequest(userId, userMessage);
+          await replyTextWithQR(replyToken, askReply);
+          log.info('webhook.unknown_info_callback', { userId, latencyMs: Date.now() - start });
+          return;
+        }
 
         await replyTextWithQR(replyToken, reply);
         log.info('webhook.reply_sent', { userId, latencyMs: Date.now() - start, replyLength: reply.length });
