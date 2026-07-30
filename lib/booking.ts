@@ -85,13 +85,13 @@ function isValidDate(raw: string): boolean {
   return parsed !== raw.trim();
 }
 
-// ตรวจว่า input เป็นเบอร์โทรจริง — ตัวเลขล้วน 10 หลัก ขึ้นต้นด้วย 0 (เว้นวรรค/ขีดคั่นได้)
+// ตรวจว่า input เป็นเบอร์มือถือไทยจริง — ขึ้นต้น 06, 08, 09 รวม 10 หลัก (เว้นวรรค/ขีดคั่นได้)
 function normalizePhone(raw: string): string {
   return raw.trim().replace(/[\s-]/g, '');
 }
 
 function isValidPhone(raw: string): boolean {
-  return /^0\d{9}$/.test(normalizePhone(raw));
+  return /^0[689]\d{8}$/.test(normalizePhone(raw));
 }
 
 export function isBookingTrigger(message: string): boolean {
