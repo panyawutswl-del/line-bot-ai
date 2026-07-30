@@ -11,3 +11,15 @@ export function shouldSendDailyWelcome(userId: string): boolean {
   lastGreeted.set(userId, today);
   return true;
 }
+
+const GREETING_WORDS = [
+  'สวัสดี', 'สวัสดีค่ะ', 'สวัสดีค่า', 'สวัสดีครับ',
+  'หวัดดี', 'หวัดดีค่ะ', 'หวัดดีครับ',
+  'ดีค่ะ', 'ดีครับ', 'hi', 'hello', 'hey',
+];
+
+// ทักทายเฉยๆ ไม่มีคำถามจริง (ตัดเครื่องหมาย/อีโมจิท้ายประโยคออกก่อนเทียบ)
+export function isGreetingOnly(message: string): boolean {
+  const clean = message.trim().toLowerCase().replace(/[\s!.,😊🙏👋😀🙂❤️]+$/g, '');
+  return GREETING_WORDS.includes(clean);
+}
