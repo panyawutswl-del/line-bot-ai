@@ -8,6 +8,7 @@ import { shouldHandoff, notifyAdmin, notifyAdminBooking } from '@/lib/handoff';
 import { fuzzyContains } from '@/lib/fuzzy';
 import { isPaused, pauseUser } from '@/lib/pause';
 import { isBookingTrigger, hasActiveBooking, startBooking, handleBookingStep } from '@/lib/booking';
+import { logUnansweredQuestion } from '@/lib/unanswered';
 import { log } from '@/lib/log';
 
 export const maxDuration = 10;
@@ -162,6 +163,9 @@ export async function POST(req: NextRequest) {
             .join('\n\n');
           const reply = await generateReply(userId, userMessage, faqText);
           await send(reply);
+          if (reply === DEFAULT_REPLY) {
+            await logUnansweredQuestion(userId, userMessage);
+          }
           log.info('fb.reply_sent', { userId, latencyMs: Date.now() - start });
         } catch (err) {
           log.error('fb.event_error', { userId, err: String((err as Error)?.message ?? err) });
