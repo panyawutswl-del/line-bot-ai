@@ -39,6 +39,7 @@ lib/log.ts                      — structured JSON logging
 - `GEMINI_API_KEY`
 - `SHEET_CSV_URL`
 - `ADMIN_GROUP_ID` — LINE Group ID สำหรับรับ Smart Handoff notifications (optional)
+- `UNANSWERED_SHEET_URL` — Google Apps Script Web App URL สำหรับบันทึกคำถามที่บอทตอบไม่ได้ลง Google Sheet แท็บใหม่ (optional)
 
 ## Google Sheet format
 

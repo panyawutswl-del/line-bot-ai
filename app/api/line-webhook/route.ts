@@ -13,6 +13,7 @@ import { log } from '@/lib/log';
 import { isBookingTrigger, hasActiveBooking, startBooking, handleBookingStep } from '@/lib/booking';
 import { shouldSendDailyWelcome, isGreetingOnly } from '@/lib/greeting';
 import { hasActiveCallbackRequest, startCallbackRequest, handleCallbackStep } from '@/lib/callback';
+import { logUnansweredQuestion } from '@/lib/unanswered';
 
 export const maxDuration = 10;
 
@@ -221,7 +222,10 @@ export async function POST(req: NextRequest) {
 
         if (reply === DEFAULT_REPLY) {
           const askReply = startCallbackRequest(userId, userMessage);
-          await replyTextWithQR(replyToken, askReply);
+          await Promise.all([
+            replyTextWithQR(replyToken, askReply),
+            logUnansweredQuestion(userId, userMessage),
+          ]);
           log.info('webhook.unknown_info_callback', { userId, latencyMs: Date.now() - start });
           return;
         }
