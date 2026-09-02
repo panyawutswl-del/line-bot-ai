@@ -27,7 +27,7 @@ export async function fetchFAQRows(): Promise<FAQRow[]> {
 async function fetchOneSheet(url: string): Promise<FAQRow[]> {
   const res = await fetch(url.trim(), {
     cache: 'no-store',
-    signal: AbortSignal.timeout(5_000),
+    signal: AbortSignal.timeout(3_000),
   });
   if (!res.ok) throw new Error(`sheet fetch ${res.status} — ${url}`);
   return csvToFaqRows(await res.text());

@@ -78,12 +78,17 @@ export async function POST(req: NextRequest) {
         // 1. ถ้าแอดมินกำลังคุยอยู่ → บอทหยุดตอบ 2 ชั่วโมง
         if (isPaused(userId)) return;
 
-        // 1c. ทักครั้งแรกของวัน (เวลาไทย) → ส่งข้อความต้อนรับ แล้วค่อยตอบข้อความปกติต่อ
-        if (await shouldSendDailyWelcome(userId)) {
-          await pushText(userId, WELCOME_MESSAGE);
-          log.info('webhook.daily_welcome', { userId });
-        }
+        // 1c. ทักครั้งแรกของวัน (เวลาไทย) → ส่งข้อความต้อนรับ แบบไม่บล็อกการตอบคำถามหลัก
+        // (ยิงคู่ขนานไปกับขั้นตอนอื่น แล้วค่อย await รวมใน finally ด้านล่าง กัน Redis ช้า/ล่ม
+        // ไปแย่งเวลาจาก budget รวม 10s ของ webhook)
+        const dailyWelcomePromise = shouldSendDailyWelcome(userId)
+          .then((should) => {
+            if (!should) return;
+            return pushText(userId, WELCOME_MESSAGE).then(() => log.info('webhook.daily_welcome', { userId }));
+          })
+          .catch((err) => log.error('webhook.daily_welcome_error', { err: String((err as Error)?.message ?? err) }));
 
+        try {
         // 2. Quick Reply shortcuts (button triggers)
         if (userMessage === 'คุยกับเจ้าหน้าที่') {
           pauseUser(userId);
@@ -232,6 +237,10 @@ export async function POST(req: NextRequest) {
 
         await replyTextWithQR(replyToken, reply);
         log.info('webhook.reply_sent', { userId, latencyMs: Date.now() - start, replyLength: reply.length });
+        } finally {
+          // กัน Vercel serverless ตัด instance ก่อน push ข้อความต้อนรับเสร็จ (ไม่มี waitUntil)
+          await dailyWelcomePromise;
+        }
       } catch (err) {
         log.error('webhook.event_error', {
           userId,

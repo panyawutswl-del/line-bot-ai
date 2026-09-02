@@ -12,14 +12,22 @@ function todayInBangkok(): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Bangkok' }).format(new Date());
 }
 
+const REDIS_TIMEOUT_MS = 1_500;
+
 // true ถ้ายังไม่เคยทักลูกค้าคนนี้วันนี้ (นับเป็นเวลาไทย) — เรียกครั้งเดียวก็ mark ว่าทักแล้ว
 // เก็บผ่าน Redis (ไม่ใช่ in-memory) เพราะ Vercel serverless ไม่รับประกัน instance เดิมทุก request
-// ถ้า Redis ล่ม/เรียกไม่ได้ → ข้าม feature นี้ไปเลย (คืน false) ห้ามให้ throw หลุดขึ้นไป
-// เพราะจะทำให้ทั้ง webhook ตอบ DEFAULT_REPLY ทุกข้อความ ไม่ว่าลูกค้าจะถามอะไรก็ตาม
+// ถ้า Redis ล่ม/ช้า/เรียกไม่ได้ → ข้าม feature นี้ไปเลย (คืน false) ภายใน REDIS_TIMEOUT_MS เสมอ
+// ห้ามให้ throw หรือค้างนาน เพราะ webhook ทั้ง function มีเวลาตอบแค่ 10s รวมทุก call
 export async function shouldSendDailyWelcome(userId: string): Promise<boolean> {
   const key = `greeted:${userId}:${todayInBangkok()}`;
   try {
-    const result = await redis.set(key, '1', { nx: true, ex: GREETED_TTL_SEC });
+    const timeout = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('redis_timeout')), REDIS_TIMEOUT_MS),
+    );
+    const result = await Promise.race([
+      redis.set(key, '1', { nx: true, ex: GREETED_TTL_SEC }),
+      timeout,
+    ]);
     return result === 'OK';
   } catch (err) {
     log.error('greeting.redis_unavailable', { err: String((err as Error)?.message ?? err) });
