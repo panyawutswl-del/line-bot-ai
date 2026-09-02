@@ -29,6 +29,16 @@ function getImageUrls(room: FAQRow): string[] {
   return urls;
 }
 
+
+
+function getWebsiteUrl(roomQuestion: string): string {
+  const q = roomQuestion.toLowerCase();
+  if (q.includes('sriwilai suite') || q.includes('suite')) return 'https://sriwilaisukhothai.com/rooms/suite';
+  if (q.includes('deluxe')) return 'https://sriwilaisukhothai.com/rooms/deluxe';
+  if (q.includes('superior')) return 'https://sriwilaisukhothai.com/rooms/superior';
+  return 'https://sriwilaisukhothai.com/rooms/';
+}
+
 function buildBubble(room: FAQRow): object {
   const imageUrls = getImageUrls(room);
   const mainImage = imageUrls[0];
@@ -47,7 +57,7 @@ function buildBubble(room: FAQRow): object {
           flex: 1,
           aspectRatio: '1:1',
           aspectMode: 'cover',
-          action: { type: 'uri', label: 'ดูรูป', uri: url },
+          action: { type: 'uri', label: 'ดูรูป', uri: getWebsiteUrl(room.question) },
         })),
       }]
     : [];
@@ -61,7 +71,7 @@ function buildBubble(room: FAQRow): object {
         size: 'full',
         aspectRatio: '16:9',
         aspectMode: 'cover',
-        action: { type: 'uri', label: 'ดูรูป', uri: mainImage },
+        action: { type: 'uri', label: 'ดูรูป', uri: getWebsiteUrl(room.question) },
       },
     }),
     header: {
