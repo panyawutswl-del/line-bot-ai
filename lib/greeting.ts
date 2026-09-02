@@ -1,15 +1,22 @@
-const lastGreeted = new Map<string, string>(); // userId → YYYY-MM-DD (Asia/Bangkok)
+import { Redis } from '@upstash/redis';
+
+const redis = new Redis({
+  url: process.env.KV_REST_API_URL!,
+  token: process.env.KV_REST_API_TOKEN!,
+});
+
+const GREETED_TTL_SEC = 30 * 60 * 60; // 30 ชม. — กันวันเปลี่ยนเขตเวลา ไม่ต้องเก็บ key ตลอดไป
 
 function todayInBangkok(): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Bangkok' }).format(new Date());
 }
 
 // true ถ้ายังไม่เคยทักลูกค้าคนนี้วันนี้ (นับเป็นเวลาไทย) — เรียกครั้งเดียวก็ mark ว่าทักแล้ว
-export function shouldSendDailyWelcome(userId: string): boolean {
-  const today = todayInBangkok();
-  if (lastGreeted.get(userId) === today) return false;
-  lastGreeted.set(userId, today);
-  return true;
+// เก็บผ่าน Redis (ไม่ใช่ in-memory) เพราะ Vercel serverless ไม่รับประกัน instance เดิมทุก request
+export async function shouldSendDailyWelcome(userId: string): Promise<boolean> {
+  const key = `greeted:${userId}:${todayInBangkok()}`;
+  const result = await redis.set(key, '1', { nx: true, ex: GREETED_TTL_SEC });
+  return result === 'OK';
 }
 
 const GREETING_WORDS = [

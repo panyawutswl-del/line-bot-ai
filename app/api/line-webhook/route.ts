@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
         const followUserId = (event.source as Record<string, unknown> | undefined)?.userId as string | undefined;
         try {
           await replyTextWithQR(replyToken, WELCOME_MESSAGE);
-          if (followUserId) shouldSendDailyWelcome(followUserId); // กันไม่ให้ทักซ้ำจากข้อความแรกของวันเดียวกัน
+          if (followUserId) await shouldSendDailyWelcome(followUserId); // กันไม่ให้ทักซ้ำจากข้อความแรกของวันเดียวกัน
           log.info('webhook.follow_welcome', { userId: followUserId });
         } catch (err) {
           log.error('webhook.follow_error', { err: String((err as Error)?.message ?? err) });
@@ -79,7 +79,7 @@ export async function POST(req: NextRequest) {
         if (isPaused(userId)) return;
 
         // 1c. ทักครั้งแรกของวัน (เวลาไทย) → ส่งข้อความต้อนรับ แล้วค่อยตอบข้อความปกติต่อ
-        if (shouldSendDailyWelcome(userId)) {
+        if (await shouldSendDailyWelcome(userId)) {
           await pushText(userId, WELCOME_MESSAGE);
           log.info('webhook.daily_welcome', { userId });
         }
