@@ -46,8 +46,73 @@ function normalizeYear(y: string): string {
   return y;
 }
 
+interface YMD {
+  y: number;
+  m: number;
+  d: number;
+}
+
+const WEEKDAY_INDEX: Record<string, number> = {
+  'อาทิตย์': 0, 'จันทร์': 1, 'อังคาร': 2, 'พุธ': 3,
+  'พฤหัสบดี': 4, 'พฤหัส': 4, 'ศุกร์': 5, 'เสาร์': 6,
+};
+
+function bangkokToday(): YMD {
+  const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Bangkok' }).formatToParts(new Date());
+  const get = (type: string) => parseInt(parts.find((p) => p.type === type)!.value, 10);
+  return { y: get('year'), m: get('month'), d: get('day') };
+}
+
+function addDays(base: YMD, days: number): YMD {
+  const dt = new Date(Date.UTC(base.y, base.m - 1, base.d));
+  dt.setUTCDate(dt.getUTCDate() + days);
+  return { y: dt.getUTCFullYear(), m: dt.getUTCMonth() + 1, d: dt.getUTCDate() };
+}
+
+function weekdayIndex(base: YMD): number {
+  return new Date(Date.UTC(base.y, base.m - 1, base.d)).getUTCDay();
+}
+
+function formatYMD({ y, m, d }: YMD): string {
+  return `${d} ${THAI_MONTHS[String(m)]} ${y + 543}`;
+}
+
+// ตัดคำลงท้ายสุภาพออกก่อนเทียบ เช่น "พรุ่งนี้ค่ะ" → "พรุ่งนี้"
+function stripPoliteEnding(s: string): string {
+  return s.replace(/(นะคะ|นะครับ|ค่ะ|ค่า|คะ|ครับ|จ้า|จ๊ะ)\s*$/, '').trim();
+}
+
+// แปลงคำวันที่แบบสัมพัทธ์ (วันนี้, พรุ่งนี้, มะรืนนี้, วันเสาร์นี้/หน้า, อีก N วัน) เป็นวันที่จริง
+function parseRelativeDate(raw: string): string | null {
+  const s = stripPoliteEnding(raw.trim());
+  if (!s) return null;
+
+  const today = bangkokToday();
+
+  if (s === 'วันนี้') return formatYMD(addDays(today, 0));
+  if (s === 'พรุ่งนี้') return formatYMD(addDays(today, 1));
+  if (s === 'มะรืนนี้' || s === 'มะรืน') return formatYMD(addDays(today, 2));
+
+  const inNDays = s.match(/^อีก\s*(\d{1,3})\s*วัน$/);
+  if (inNDays) return formatYMD(addDays(today, parseInt(inNDays[1], 10)));
+
+  const weekday = s.match(/^(?:วัน)?(พฤหัสบดี|อาทิตย์|จันทร์|อังคาร|พุธ|พฤหัส|ศุกร์|เสาร์)(นี้|หน้า)?$/);
+  if (weekday) {
+    const [, name, suffix] = weekday;
+    const todayIdx = weekdayIndex(today);
+    let offset = (WEEKDAY_INDEX[name] - todayIdx + 7) % 7;
+    if (suffix === 'หน้า') offset += 7;
+    return formatYMD(addDays(today, offset));
+  }
+
+  return null;
+}
+
 function parseDate(raw: string): string {
   const s = raw.trim().toLowerCase();
+
+  const relative = parseRelativeDate(s);
+  if (relative) return relative;
 
   // format: DD.MM.YY หรือ DD/MM/YY เช่น 22.01.68, 22/10/69
   const dotSlash = s.match(/^(\d{1,2})[./](\d{1,2})[./](\d{2,4})$/);
@@ -118,7 +183,7 @@ export function handleBookingStep(userId: string, message: string): BookingResul
 
   if (session.step === 'date') {
     if (!isValidDate(message)) {
-      return { reply: 'ขออภัยค่ะ รบกวนแจ้งวันที่เข้าพักด้วยนะคะ เช่น 22.10.68 หรือ 22ตค68 ค่ะ' };
+      return { reply: 'ขออภัยค่ะ รบกวนแจ้งวันที่เข้าพักด้วยนะคะ เช่น 22.10.68, พรุ่งนี้ หรือ วันเสาร์นี้ ค่ะ' };
     }
     const parsed = parseDate(message);
     session.date = parsed;
