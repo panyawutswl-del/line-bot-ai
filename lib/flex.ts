@@ -58,7 +58,7 @@ function buildBubble(room: FAQRow): object {
       hero: {
         type: 'image',
         url: mainImage,
-        size: 'lg',
+        size: 'full',
         aspectRatio: '16:9',
         aspectMode: 'cover',
         action: { type: 'uri', label: 'ดูรูป', uri: mainImage },
