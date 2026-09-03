@@ -82,7 +82,13 @@ export async function checkFloodStatus(): Promise<FloodStatusResponse> {
     if (stations.length === 0) {
       return { found: false, message: 'ไม่พบข้อมูลสถานีวัดระดับน้ำในจังหวัดสุโขทัยขณะนี้' };
     }
-    return { found: true, stations };
+    // จังหวัดสุโขทัยมีสถานีเยอะ (~27) — payload ใหญ่ทำให้ Gemini ประมวลผลช้าจนอาจเกิน deadline
+    // ให้ความสำคัญกับอำเภอเมืองสุโขทัย (ที่โรงแรมตั้งอยู่) ก่อน แล้วจำกัดจำนวนไม่เกิน 6 สถานี
+    const prioritized = [
+      ...stations.filter((s) => s.district === 'เมืองสุโขทัย'),
+      ...stations.filter((s) => s.district !== 'เมืองสุโขทัย'),
+    ].slice(0, 6);
+    return { found: true, stations: prioritized };
   } catch (err) {
     console.error('[flood] fetch failed:', err);
     return { found: false, message: 'ไม่สามารถดึงข้อมูลระดับน้ำได้ในขณะนี้' };
