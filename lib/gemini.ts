@@ -5,6 +5,8 @@ import { TOOLS } from '@/lib/agents/tools-schema';
 import { checkRoomAvailability, getRoomDetails, getBookingLink } from '@/lib/agents/cloudbeds';
 import { searchTouristInfo } from '@/lib/agents/places';
 import { searchHotelWebsite } from '@/lib/agents/website';
+import { checkFloodStatus } from '@/lib/agents/flood';
+import { checkWeather } from '@/lib/agents/weather';
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
@@ -51,10 +53,10 @@ function buildSystemPrompt(faqText: string): string {
 - การเดินทางมาสุโขทัย
 - ระยะทางจากโรงแรมไปสถานที่ต่างๆ
 
-ห้ามเด็ดขาด — คุณไม่มีข้อมูลสถานการณ์ปัจจุบัน/เรียลไทม์ ห้ามเดาหรือคาดการณ์สถานการณ์ ณ วันนี้:
-- น้ำท่วม/สถานการณ์น้ำ → ตอบว่าไม่มีข้อมูลในระบบ แนะนำให้ตรวจสอบจาก thaiwater.net หรือติดต่อเจ้าหน้าที่โรงแรมที่ ${PHONE} โดยตรง
-- สภาพอากาศวันนี้/ตอนนี้ → แนะนำให้ตรวจสอบจากกรมอุตุนิยมวิทยา (tmd.go.th)
-- ภัยพิบัติ, ถนนปิด/เปิด, เหตุการณ์เฉพาะหน้าอื่นๆ → ตอบว่าไม่มีข้อมูลในระบบ แนะนำให้ติดต่อเจ้าหน้าที่โรงแรมที่ ${PHONE} โดยตรง
+ห้ามเด็ดขาด — คุณไม่มีข้อมูลสถานการณ์ปัจจุบัน/เรียลไทม์เอง ห้ามเดาหรือคาดการณ์สถานการณ์ ณ วันนี้:
+- น้ำท่วม/สถานการณ์น้ำ/ระดับน้ำแม่น้ำยม → ห้ามเดาเด็ดขาด ให้เรียก checkFloodStatus() ก่อนตอบทุกครั้ง ตีความผลลัพธ์แต่ละสถานี: diffFromBankM มากกว่า 1 (เมตร) = ระดับน้ำยังต่ำกว่าตลิ่งมาก ปลอดภัย, ระหว่าง 0-1 = ใกล้ตลิ่งแล้ว ควรเฝ้าระวัง, น้อยกว่าหรือเท่ากับ 0 = น้ำล้นตลิ่งแล้ว เสี่ยงท่วม — ตอบตามข้อมูลจริงพร้อมบอกชื่อสถานี/แม่น้ำ/เวลาที่อัพเดต แต่ต้องย้ำเสมอว่าเป็นข้อมูลจากสถานีวัดน้ำ ไม่ใช่การยืนยันที่ตัวโรงแรมโดยตรง แนะนำให้เช็คเพิ่มที่ thaiwater.net หรือโทรโรงแรมที่ ${PHONE} เพื่อความชัวร์ ถ้าเครื่องมือคืนค่า found:false ให้บอกว่าไม่มีข้อมูลในระบบ แนะนำ thaiwater.net/โทรโรงแรมแทน
+- สภาพอากาศวันนี้/พรุ่งนี้/ฝนตกไหม/ร้อนไหม → ห้ามเดาเด็ดขาด ให้เรียก checkWeather() ก่อนตอบทุกครั้ง แล้วบอกอุณหภูมิ/สภาพอากาศ/โอกาสฝนตกตามข้อมูลจริงที่ได้ พร้อมแนะนำลูกค้าเตรียมตัวให้เหมาะสม (เช่น ถ้าฝนตก/โอกาสฝนสูง แนะนำพกร่ม/เสื้อกันฝน, ถ้าร้อนจัดแนะนำพกน้ำ/ครีมกันแดด) ถ้าเครื่องมือคืนค่า found:false ให้บอกว่าไม่มีข้อมูลในระบบ แนะนำให้ตรวจสอบจากกรมอุตุนิยมวิทยา (tmd.go.th) แทน
+- ภัยพิบัติอื่นๆ, ถนนปิด/เปิด, เหตุการณ์เฉพาะหน้าอื่นๆ → ตอบว่าไม่มีข้อมูลในระบบ แนะนำให้ติดต่อเจ้าหน้าที่โรงแรมที่ ${PHONE} โดยตรง
 - ห้ามเดาต่อว่าน่าจะเป็นอย่างไรเด็ดขาด ไม่ว่ากรณีใด
 
 สิ่งที่ห้ามตอบ (ให้บอกโทร ${PHONE}):
@@ -107,6 +109,10 @@ async function executeFunctionCall(
         return { ...(await searchTouristInfo(String(args.query ?? ''))) };
       case 'searchHotelWebsite':
         return { ...(await searchHotelWebsite()) };
+      case 'checkFloodStatus':
+        return { ...(await checkFloodStatus()) };
+      case 'checkWeather':
+        return { ...(await checkWeather()) };
       default:
         return { error: `unknown tool: ${name}` };
     }
