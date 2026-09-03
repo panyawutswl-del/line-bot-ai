@@ -1,6 +1,6 @@
 /**
  * Google Places API Integration
- * ค้นหาสถานที่ท่องเที่ยว ร้านอาหาร ในสุโขทัย
+ * ค้นหาสถานที่ท่องเที่ยว ร้านอาหาร ในสุโขทัย พร้อมระยะทางจากโรงแรม
  */
 
 interface PlaceResult {
@@ -8,6 +8,7 @@ interface PlaceResult {
   address: string;
   rating?: number;
   types: string[];
+  distanceKm?: number;
 }
 
 interface TouristInfoResponse {
@@ -18,8 +19,22 @@ interface TouristInfoResponse {
 const API_KEY = process.env.GOOGLE_PLACES_API_KEY;
 const BASE_URL = 'https://places.googleapis.com/v1/places:searchText';
 
+// พิกัดโรงแรมศรีวิไล สุโขทัย รีสอร์ท แอนด์ สปา — ใช้คำนวณระยะทางแบบเส้นตรง (Haversine)
+const HOTEL_LAT = 17.0159349;
+const HOTEL_LNG = 99.7241314;
+
 // จำกัดพื้นที่ค้นหาให้อยู่แถวสุโขทัยเสมอ (bias ผลลัพธ์)
 const SUKHOTHAI_BIAS = ' สุโขทัย';
+
+function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371; // รัศมีโลก (กม.)
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
 
 export async function searchTouristInfo(
   query: string,
@@ -40,7 +55,7 @@ export async function searchTouristInfo(
       headers: {
         'Content-Type': 'application/json',
         'X-Goog-Api-Key': API_KEY,
-        'X-Goog-FieldMask': 'places.displayName,places.formattedAddress,places.rating,places.types',
+        'X-Goog-FieldMask': 'places.displayName,places.formattedAddress,places.rating,places.types,places.location',
       },
       body: JSON.stringify({
         textQuery: searchQuery,
@@ -59,12 +74,20 @@ export async function searchTouristInfo(
     const places = (data.places ?? []) as any[];
 
     return {
-      results: places.map((p) => ({
-        name: p.displayName?.text ?? '',
-        address: p.formattedAddress ?? '',
-        rating: p.rating,
-        types: p.types ?? [],
-      })),
+      results: places.map((p) => {
+        const lat = p.location?.latitude;
+        const lng = p.location?.longitude;
+        return {
+          name: p.displayName?.text ?? '',
+          address: p.formattedAddress ?? '',
+          rating: p.rating,
+          types: p.types ?? [],
+          distanceKm:
+            typeof lat === 'number' && typeof lng === 'number'
+              ? Math.round(haversineKm(HOTEL_LAT, HOTEL_LNG, lat, lng) * 10) / 10
+              : undefined,
+        };
+      }),
     };
   } catch (err) {
     console.error('[places] search failed:', err);
