@@ -22,10 +22,10 @@ export const TOOLS: FunctionDeclaration[] = [
         },
         nights: {
           type: Type.NUMBER,
-          description: 'จำนวนคืนที่ต้องการพัก (1-30)',
+          description: 'จำนวนคืนที่ต้องการพัก (1-30) — ถ้าลูกค้าไม่ได้ระบุจำนวนคืน ให้ใช้ 1 โดยไม่ต้องถามลูกค้าเพิ่ม',
         },
       },
-      required: ['roomType', 'checkInDate', 'nights'],
+      required: ['roomType', 'checkInDate'],
     },
   },
   {
