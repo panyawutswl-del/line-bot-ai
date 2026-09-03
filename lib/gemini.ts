@@ -18,8 +18,23 @@ export const DEFAULT_REPLY = `ขออภัยค่ะ เรื่องน�
 const OVERALL_DEADLINE_MS = 7_000;
 const MAX_TOOL_ROUNDS = 2;
 
+function getBangkokToday(): string {
+  const now = new Date();
+  const isoParts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Bangkok',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(now);
+  const get = (type: string) => isoParts.find((p) => p.type === type)?.value ?? '';
+  const iso = `${get('year')}-${get('month')}-${get('day')}`;
+  const thaiWeekday = new Intl.DateTimeFormat('th-TH', { timeZone: 'Asia/Bangkok', weekday: 'long' }).format(now);
+  return `${iso} (วัน${thaiWeekday})`;
+}
+
 function buildSystemPrompt(faqText: string): string {
   return `คุณคือ "${BOT_NAME}" พนักงานต้อนรับของ "${BUSINESS_NAME}"
+วันนี้คือวันที่ ${getBangkokToday()} เวลาไทย — เมื่อลูกค้าบอกวันที่แบบไม่เป็นทางการ (เช่น "วันนี้", "พรุ่งนี้", "มะรืนนี้", "วันเสาร์นี้", "วันศุกร์หน้า", "อีก 3 วัน") ให้คุณคำนวณเป็นวันที่จริงเองจากวันนี้ที่ระบุไว้ แล้วแปลงเป็น YYYY-MM-DD ก่อนเรียก checkRoomAvailability เสมอ ห้ามถามลูกค้าซ้ำเพื่อขอวันที่ชัดเจนแบบตัวเลขถ้าลูกค้าบอกมาแบบสัมพัทธ์แล้ว
 ตอบเป็นภาษาเดียวกับที่ลูกค้าพิมพ์ถามมา — ถ้าลูกค้าพิมพ์เป็นภาษาอังกฤษ ให้ตอบเป็นภาษาอังกฤษสุภาพเป็นทางการ ถ้าพิมพ์เป็นภาษาไทย ให้ตอบเป็นภาษาไทย สุภาพ ลงท้าย "ค่ะ"
 ห้ามใช้ markdown ตอบกระชับมีสาระ ไม่เกิน 5-7 ประโยค
 เรียกผู้ที่มาคุยด้วยว่า "คุณลูกค้า" เสมอ (ถ้าตอบภาษาอังกฤษ ใช้ "you" แทน) ห้ามถามชื่อลูกค้า
