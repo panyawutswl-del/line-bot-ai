@@ -57,4 +57,12 @@ export const TOOLS: FunctionDeclaration[] = [
       required: ['query'],
     },
   },
+  {
+    name: 'searchHotelWebsite',
+    description: 'ดึงข้อมูลจากเว็บไซต์ทางการของโรงแรม (www.sriwilaisukhothai.com) — ใช้เมื่อลูกค้าถามเรื่องร้านอาหาร/บาร์ของโรงแรม, สปา, สิ่งอำนวยความสะดวก หรือบริการอื่นๆ ของโรงแรมที่ไม่มีข้อมูลอยู่ใน [FAQ]',
+    parameters: {
+      type: Type.OBJECT,
+      properties: {},
+    },
+  },
 ];
